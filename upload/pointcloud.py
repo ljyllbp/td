@@ -42,6 +42,10 @@ class pointcloud_upload(upload):
                 exe_path = f"{exe_head}/c/pcdCompressUbuntu"
             
             res_bin_path = f"{self.data_root}/.resbin"
+            
+            if os.path.exists(res_bin_path):
+                os.remove(res_bin_path)
+
             if self.is_force_Compressed:
                 if self.debug:
                     if OS_TYPE != "win":
