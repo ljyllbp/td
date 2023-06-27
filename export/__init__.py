@@ -442,7 +442,7 @@ class Exporter(object):
             source_url = parse.unquote(source_url.split("?")[0])
         else:
             source_url = parse.unquote(source_url)
-        source_save_path = self.out + "/" + self.task_batch_key + "/" + "/".join(source_url.split("/")[4:])
+        source_save_path = self.out + "/" + "/".join(source_url.split("/")[4:])
         label_save_path = "/".join(source_save_path.split("/")[:-2]) + "/label/" + os.path.splitext(source_save_path.split("/")[-1])[0] + ".json"
         return label_save_path
     
@@ -451,7 +451,7 @@ class Exporter(object):
             source_url = parse.unquote(source_url.split("?")[0])
         else:
             source_url = parse.unquote(source_url)
-        source_save_path = self.out + "/" + self.task_batch_key + "/" + "/".join(source_url.split("/")[4:])
+        source_save_path = self.out + "/" + "/".join(source_url.split("/")[4:])
         return source_save_path
     
     def get_debug_path(self, path):

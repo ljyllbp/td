@@ -8,7 +8,6 @@ td命令行工具为方便针对标注平台数据上传、下载的本地命令
 下载成功解压后将解压得到的目录路径加入到本地的环境变量中，可在命令行终端中直接使用td命令，或者通过完整路径执行td命令。
 
 当前版本：0.1.0
-sudo spctl --master-disable
 
 [Linux版本](http://src1-yscdn.testin.cn/data/td/0.1.0/td_linux.zip)  
 [Mac-Arm版本](http://src1-yscdn.testin.cn/data/td/0.1.0/td_mac_arm.zip)  

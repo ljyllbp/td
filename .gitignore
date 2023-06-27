@@ -1,0 +1,25 @@
+# # Byte-compiled / optimized / DLL files
+__pycache__/
+.vscode/
+.DS_Store
+.history
+docker/minio
+docker/mysql/
+data/
+migrations/
+minio_test.py
+upload/
+config/*.pass
+test.py
+app/*.pass
+log/labeldata.log
+log/labeldata_celery.log
+log/labeldata_flask.log
+r.txt
+docker/labeld-data.tar
+docker/Dockerfile
+docker/entrypoint.sh
+docker/get-pip.py
+docker/qshell
+.idea
+zip包测试/
