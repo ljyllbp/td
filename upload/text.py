@@ -8,33 +8,32 @@ class text_upload(upload):
             self.delete_add_files()
             self.check_data_root()
             self.add_order_sn_and_sequence_id()
+            self.get_batch_sn()
         except Exception as e:
             self.save_add_files()
             self.delete_add_files()
-            raise Exception(str(e))
+            raise_error(e, self.error_record_path)
 
         try:
-            self.get_batch_sn()
             self.get_oss_config()
-
             self.add_oss_file_path()
             self.upload_files()
             self.change_path_original()
             self.call_back_success()
             if self.debug:
-                print(f"batch_sn: {self.batch_sn}")
+                print(f"批次号: {self.batch_sn}")
             return self.batch_sn
         except Exception as e:
             self.call_back_fail(e)
-            raise Exception(str(e))
+            raise_error(e, self.error_record_path)
         finally:
             self.save_add_files()
             self.delete_add_files()
+            self.log_fp.close()
 
     # 获取云存储路径
     def add_oss_file_path(self):
-        if self.debug:
-            print("获取云存储路径")
+        self.loged("获取云存储路径")
         for segment_relative_root in self.upload_files_path.keys():
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
@@ -57,7 +56,7 @@ class text_upload(upload):
         
         if not os.path.exists(text_root):
             error_path = self.get_relative_path(text_root)
-            raise Exception(f"{error_path} 不存在")
+            raise Exception(f"expect error: {error_path} 不存在")
         
         self.is_root(text_root)
 
@@ -76,7 +75,7 @@ class text_upload(upload):
             file_type = self.get_file_type(file_path)
             if file_type not in file_types:
                 error_path = self.get_relative_path(file_path)
-                raise Exception(f"{error_path} 不支持该类型文本文件")
+                raise Exception(f"expect error: {error_path} 不支持该类型文本文件")
 
             self.assert_illegal_characters(self.get_relative_path(file_path))
 
@@ -85,47 +84,47 @@ class text_upload(upload):
                     text_data = json.load(f)
             except:
                 error_path = self.get_relative_path(file_path)
-                raise Exception(f"{error_path}, 文件读取错误")
+                raise Exception(f"expect error: {error_path}, 文件读取错误")
 
             data_count = 0
 
             error_path = self.get_relative_path(file_path)
 
             if not isinstance(text_data, list):
-                raise Exception(f"{error_path}, json内容应为list")
+                raise Exception(f"expect error: {error_path}, json内容应为list")
             
             for data_index, value in enumerate(text_data):
                 data_count += 1
                 if not isinstance(value,dict):
-                    raise Exception(f"{error_path}, 第 {data_index} 条数据应为字典")
+                    raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据应为字典")
                 # text
                 if "text" not in value:
-                    raise Exception(f"{error_path}, 第 {data_index} 条数据缺少字段text")
+                    raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据缺少字段text")
                 else:
                     if not isinstance(value["text"], str):
-                        raise Exception(f"{error_path}, 第 {data_index} 条数据text类型应为字符串")
+                        raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据text类型应为字符串")
                 # pre_label
                 if "pre_label" in value and not isinstance(value["pre_label"], dict):
-                    raise Exception(f"{error_path}, 第 {data_index} 条数据pre_label类型应为字典")
+                    raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据pre_label类型应为字典")
                 # img
                 if "img" in value:
                     if not isinstance(value["img"], list):
-                        raise Exception(f"{error_path}, 第 {data_index} 条数据img类型应为列表")
+                        raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据img类型应为列表")
                     else:
                         text_name = self.get_file_name(file_path)
                         for pic_index, pic_name in enumerate(value["img"]):
                             if not isinstance(pic_name,str):
-                                raise Exception(f"{error_path}, 第{data_index}条数据img中应为字典")
+                                raise Exception(f"expect error: {error_path}, 第{data_index}条数据img中应为字典")
                             else:
                                 pic_path = os.path.join(segment_root, "img", text_name, pic_name)
                                 if not os.path.exists(pic_path):
                                     pic_error_path = self.get_relative_path(pic_path)
-                                    raise Exception(f"{error_path}, 第 {data_index} 条数据img第 {pic_index} 张图像 {pic_error_path} 缺少")
+                                    raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据img第 {pic_index} 张图像 {pic_error_path} 缺少")
                                 self.assert_illegal_characters(self.get_relative_path(pic_path))
                                 pic_file_type = self.get_file_type(pic_path)
                                 if pic_file_type not in IMAGE_FILE_TYPES:
                                     pic_error_path = self.get_relative_path(pic_path)
-                                    raise Exception(f"{error_path}, 不支持该类型图像")
+                                    raise Exception(f"expect error: {error_path}, 不支持该类型图像")
 
     # 对文本内容进行处理
     def text_content_deal(self, textcontent):
@@ -160,7 +159,7 @@ class text_upload(upload):
         files_ = os.listdir(text_root)
 
         for file in files_:
-
+            
             if self.ignore(file):
                 continue
     
@@ -186,8 +185,8 @@ class text_upload(upload):
                         self.upload_files_path[segment_relative_root][tar_img_file_relative_path]["path_original"] = source_img_file_path
                         self.upload_files_count += 1
 
-                text_content_save_path = os.path.join(segment_root,"text",file_name,"text",str(data_index).rjust(5, "0") + ".json")
-                self.add_files_path.append(os.path.join(segment_root,"text",file_name))
+                text_content_save_path = os.path.join(segment_root,"text","." + file_name,".text","." + str(data_index).rjust(5, "0") + ".json")
+                self.add_files_path.append(os.path.join(segment_root,"text","." + file_name))
                 self.make_dir(text_content_save_path)
                 with open(text_content_save_path, "w", encoding="utf-8") as f:
                     json.dump(text_content, f, ensure_ascii=False, indent=4)
@@ -199,11 +198,10 @@ class text_upload(upload):
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["path_original"] = text_content_save_path
                 self.upload_files_count += 1
                 
-                # raise Exception("111")
                 # 预标注结果
                 if "pre_label" not in value:
                     continue
-                pre_label_content_save_path = os.path.join(segment_root,"text",file_name,"pre_label",str(data_index).rjust(5, "0") + ".json")
+                pre_label_content_save_path = os.path.join(segment_root,"text","." + file_name,".pre_label","."+str(data_index).rjust(5, "0") + ".json")
                 self.make_dir(pre_label_content_save_path)
                 with open(pre_label_content_save_path, "w", encoding="utf-8") as f:
                     json.dump(value["pre_label"], f, ensure_ascii=False, indent=4)
@@ -221,10 +219,9 @@ class text_upload(upload):
         segment_root_count = len(segment_roots)
         for index, segment_root in enumerate(segment_roots):
             
-            if self.debug:
-                debug_path = self.get_relative_path(segment_root)
-                segment_root_index = index + 1
-                print(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
+            debug_path = self.get_relative_path(segment_root)
+            segment_root_index = index + 1
+            self.loged(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
             
             self.check_text_root(segment_root)
             self.struct_text_root(segment_root)
@@ -235,12 +232,12 @@ class text_upload(upload):
 
         if os.path.isfile(self.data_root):
             error_path = self.get_relative_path(self.data_root)
-            raise Exception(f"错误文件:{error_path},应为目录")
+            raise Exception(f"expect error: 错误文件:{error_path},应为目录")
 
         segment_roots.append(self.data_root)
 
         if len(segment_roots) == 0:
-            raise Exception("序列目录数量为0")
+            raise Exception("expect error: 序列目录数量为0")
 
         segment_roots.sort()
 

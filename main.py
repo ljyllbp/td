@@ -11,6 +11,7 @@ from config import *
 from export import *
 from utils import td_tool
 import os
+from utils.pulic_tool import raise_error
 import sys
 
 
@@ -33,7 +34,8 @@ def get_upload_class(host, ds_id, ak):
     elif data_type == "segment_video":
         upload_class = segment_video_upload
     else:
-        raise Exception(f"暂不支持{data_type}类型")
+        error_str = f"expect error: 暂不支持{data_type}类型"
+        raise_error(error_str)
 
     return upload_class
 
@@ -44,8 +46,8 @@ def mk_td():
 
     command_upload = td_tool.Command("upload", "upload local files")
     
-    command_upload.add_mandatory("ds_id", type=str)
     command_upload.add_mandatory("ak", type=str)
+    command_upload.add_mandatory("ds_id", type=str)
     command_upload.add_mandatory("data_root", type=str)
 
     command_upload.add_optional("force_compressed",little_name='f', default_value=False, detail="compress pcd file, pcd file may be modified,default false")
@@ -59,8 +61,8 @@ def mk_td():
 
 
     command_export = td_tool.Command("export", "export files")
-    command_export.add_mandatory("task_batch_key", type=str)
     command_export.add_mandatory("ak", type=str)
+    command_export.add_mandatory("task_batch_key", type=str)
     command_export.add_mandatory("out", type=str)
 
     command_export.add_optional("download_type", type=str, little_name='d', default_value="label", detail="download type: label, original or original_and_label, default label")
@@ -90,9 +92,11 @@ def mk_td():
 def check_upload_args(args):
     data_root = args["data_root"]
     if data_root.endswith(("\\","/")):
-        raise Exception(f"{data_root} 不应以‘/’,'\\'结尾")
+        error_str = f"expect error: {data_root} 不应以‘/’,'\\'结尾"
+        raise_error(error_str)
     if not os.path.isdir(data_root):
-        raise Exception(f"{data_root} 应为数据目录")
+        error_str = f"expect error: {data_root} 应为数据目录"
+        raise_error(error_str)
     
     retry_count = args["retry_count"]
     if retry_count < 0 :
@@ -110,13 +114,16 @@ def check_upload_args(args):
 def check_export_args(args):
     out = args["out"]
     if out.endswith(("\\","/")):
-        raise Exception(f"{out} 不应以‘/’,'\\'结尾")
+        error_str = f"expect error: {out} 不应以‘/’,'\\'结尾"
+        raise_error(error_str)
     if not os.path.isdir(out):
-        raise Exception(f"{out} 应为目录")
+        error_str = f"expect error: {out} 应为目录"
+        raise_error(error_str)
     
     download_type = args["download_type"]
     if download_type not in ["label", "original", "original_and_label"]:
-        raise Exception(f"download_type 的值为{download_type}, 应为 label, original, original_and_label")
+        error_str = f"expect error: download_type 的值为{download_type}, 应为 label, original, original_and_label"
+        raise_error(error_str)
 
     retry_count = args["retry_count"]
     if retry_count < 0 :
@@ -126,11 +133,13 @@ def check_export_args(args):
 
     status = args["status"]
     if status not in [0, 1, 2, 3, 99]:
-        raise Exception(f"status 的值为{status}, 应为 0, 1, 2, 3, 99")
+        error_str = f"expect error: status 的值为{status}, 应为 0, 1, 2, 3, 99"
+        raise_error(error_str)
     
     work_type = args["work_type"]
     if work_type not in [1, 2, 3, 4]:
-        raise Exception(f"status 的值为{work_type}, 应为 1, 2, 3, 4")
+        error_str = f"expect error: work_type 的值为{work_type}, 应为 1, 2, 3, 4"
+        raise_error(error_str)
     
     thread_num = args["thread_num"]
     if thread_num is not None:

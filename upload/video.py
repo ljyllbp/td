@@ -5,22 +5,26 @@ import shutil
 class video_upload(upload):    
     def start_upload(self):
 
-        self.check_data_root()
-        self.add_order_sn_and_sequence_id()
+        try:
+            self.check_data_root()
+            self.add_order_sn_and_sequence_id()
+            self.get_batch_sn()
+        except Exception as e:
+            raise_error(e, self.error_record_path)
 
         try:
-            self.get_batch_sn()
             self.get_oss_config()
             self.add_oss_file_path()
             self.upload_files()
             self.change_path_original()
             self.call_back_success()
+            self.log_fp.close()
             if self.debug:
-                print(f"batch_sn: {self.batch_sn}")
+                print(f"批次号: {self.batch_sn}")
             return self.batch_sn
         except Exception as e:
             self.call_back_fail(e)
-            raise Exception(str(e))
+            raise_error(e, self.error_record_path)
 
     # 校验video目录
     def check_video_root(self, segment_root):
@@ -32,7 +36,7 @@ class video_upload(upload):
         if not os.path.exists(video_root):
             if len(self.move_files[segment_root]) == 0:
                 error_path = self.get_relative_path(video_root)
-                raise Exception(f"{error_path} 不存在")
+                raise Exception(f"expect error: {error_path} 不存在")
             return video_files_info
 
         self.is_root(video_root)
@@ -43,7 +47,7 @@ class video_upload(upload):
         
         if len(self.move_files[segment_root]) == 0 and not video_files_info:
             error_path = self.get_relative_path(video_root)
-            raise Exception(f"{error_path} 目录下视频文件数为0")
+            raise Exception(f"expect error: {error_path} 目录下视频文件数为0")
         
         for _, video_file_info in video_files_info.items():
             self.assert_illegal_characters(self.get_relative_path(video_file_info["file_path"]))
@@ -77,7 +81,7 @@ class video_upload(upload):
             if isinstance(pre_label_files_info, dict):
                 if video_file_name not in pre_label_files_info:
                     error_path = self.get_relative_path(video_file_info["file_path"])
-                    raise Exception(f"{error_path} 未找到预标注结果文件")
+                    raise Exception(f"expect error: {error_path} 未找到预标注结果文件")
 
             for move_file_info in self.move_files[segment_root]:
             
@@ -86,17 +90,16 @@ class video_upload(upload):
                 if isinstance(pre_label_files_info, dict):
                     if video_file_name not in pre_label_files_info:
                         error_path = self.get_relative_path(move_file_info[0])
-                        raise Exception(f"{error_path} 未找到预标注结果文件")
+                        raise Exception(f"expect error: {error_path} 未找到预标注结果文件")
 
     # 校验每一个序列并获取文件列表
     def check_segment_roots(self, segment_roots):
         segment_root_count = len(segment_roots)
         for index, segment_root in enumerate(segment_roots):
             
-            if self.debug:
-                debug_path = self.get_relative_path(segment_root)
-                segment_root_index = index + 1
-                print(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
+            debug_path = self.get_relative_path(segment_root)
+            segment_root_index = index + 1
+            self.loged(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
             
             video_files_info = self.check_video_root(segment_root)
             pre_label_files_info = self.check_pre_label_root(segment_root)
@@ -111,12 +114,12 @@ class video_upload(upload):
 
         if os.path.isfile(self.data_root):
             error_path = self.get_relative_path(self.data_root)
-            raise Exception(f"错误文件:{error_path},应为目录")
+            raise Exception(f"expect error: 错误文件:{error_path},应为目录")
 
         segment_roots.append(self.data_root)
 
         if len(segment_roots) == 0:
-            raise Exception("序列目录数量为0")
+            raise Exception("expect error: 序列目录数量为0")
 
         segment_roots.sort()
 
@@ -135,7 +138,7 @@ class video_upload(upload):
                         if os.path.exists(file_tar_path):
                             error_path = self.get_relative_path(file_path)
                             error_path_ = self.get_relative_path(file_tar_path)
-                            raise Exception(f"同名文件:{error_path} {error_path_}")
+                            raise Exception(f"expect error: 同名文件:{error_path} {error_path_}")
                         self.move_files[segment_root].append(
                             [
                                 file_path,

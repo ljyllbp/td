@@ -6,30 +6,31 @@ import sys
 class pointcloud_upload(upload):    
     def start_upload(self):
         
-        self.check_data_root()
-        self.simplify_pcd()
-        self.add_order_sn_and_sequence_id()
-        
         try:
+            self.check_data_root()
+            self.simplify_pcd()
+            self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
+        except Exception as e:
+            raise_error(e, self.error_record_path)
+        try:
             self.get_oss_config()
             self.add_oss_file_path()
             self.upload_files()
             self.change_path_original()
             self.call_back_success()
+            self.log_fp.close()
             if self.debug:
-                print(f"batch_sn: {self.batch_sn}")
+                print(f"批次号: {self.batch_sn}")
             return self.batch_sn
         except Exception as e:
             self.call_back_fail(e)
-            raise Exception(str(e))
+            raise_error(e, self.error_record_path)
     
     # 精简点云
     def simplify_pcd(self):
         if self.is_simplify_pcd:
-            if self.debug:
-                print("精简点云")
-            
+            self.loged("精简点云")
             
             exe_head = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
             if OS_TYPE == "mac_arm64":
@@ -72,7 +73,7 @@ class pointcloud_upload(upload):
             if os.path.exists(res_bin_path):
                os.remove(res_bin_path)
             else:
-                raise Exception("点云文件精简失败")
+                raise Exception("expect error: 点云文件精简失败")
 
     # 检查预标注结果文件:id
     def pre_label_file_check(self, pre_label_file_file_path):
@@ -200,7 +201,7 @@ class pointcloud_upload(upload):
         
         if not os.path.exists(lidar_root):
             error_path = self.get_relative_path(lidar_root)
-            raise Exception(f"{error_path} 不存在")
+            raise Exception(f"expect error: {error_path} 不存在")
         self.is_root(lidar_root)
 
         file_types = POINTCLOUD_FILE_TYPES
@@ -209,7 +210,7 @@ class pointcloud_upload(upload):
         
         if not pcd_files_info:
             error_path = self.get_relative_path(lidar_root)
-            raise Exception(f"{error_path} 目录下点云文件数为0")
+            raise Exception(f"expect error: {error_path} 目录下点云文件数为0")
         
         # 校验特殊字符
         for _, pcd_file_info in pcd_files_info.items():
@@ -271,7 +272,7 @@ class pointcloud_upload(upload):
                 # 每一个相机目录
                 if pcd_file_name not in image_files_info:
                     error_path = self.get_relative_path(pcd_file_info["file_path"])
-                    raise Exception(f"{error_path} {camera_name}视角下未找到图像文件")
+                    raise Exception(f"expect error: {error_path} {camera_name}视角下未找到图像文件")
             
                 # self.upload_files_path.append(image_files_info[pcd_file_name]["file_path"])
 
@@ -279,13 +280,13 @@ class pointcloud_upload(upload):
             if isinstance(pre_label_files_info, dict):
                 if pcd_file_name not in pre_label_files_info:
                     error_path = self.get_relative_path(pcd_file_info["file_path"])
-                    raise Exception(f"{error_path} 未找到预标注结果文件")
+                    raise Exception(f"expect error: {error_path} 未找到预标注结果文件")
                 else:
                     try:
                         self.pre_label_file_check(pre_label_files_info[pcd_file_name]["file_path"])
                     except Exception as e:
                         error_path = self.get_relative_path(pre_label_files_info[pcd_file_name]["file_path"])
-                        raise Exception(f"{error_path} 预标注结果文件检查出错 {str(e)}")
+                        raise Exception(f"expect error: {error_path} 预标注结果文件检查出错 {str(e)}")
 
                 # self.upload_files_path.append(pre_label_files_info[pcd_file_name]["file_path"])                
             
@@ -320,12 +321,12 @@ class pointcloud_upload(upload):
                 config = json.load(f)
         except:
             error_path = self.get_relative_path(config_path)
-            raise Exception(f"{error_path} 加载config文件出错")
+            raise Exception(f"expect error: {error_path} 加载config文件出错")
         
         # config为字典格式
         if not isinstance(config, dict):
             error_path = self.get_relative_path(config_path)
-            raise Exception(f"{error_path} 格式错误,json内容应为字典")
+            raise Exception(f"expect error: {error_path} 格式错误,json内容应为字典")
         
         # 校验camera
         if "camera" not in config:
@@ -339,7 +340,7 @@ class pointcloud_upload(upload):
         else:
             if not isinstance(config["camera"], dict):
                 error_path = self.get_relative_path(config_path)
-                raise Exception(f"{error_path} 中camera对应值应为字典")
+                raise Exception(f"expect error: {error_path} 中camera对应值应为字典")
 
             for camera_name, _ in camare_images_dict.items():
                 if camera_name not in config["camera"]:
@@ -347,79 +348,79 @@ class pointcloud_upload(upload):
                 else:
                     if not isinstance(config["camera"][camera_name], str):
                         error_path = self.get_relative_path(config_path)
-                        raise Exception(f"{error_path} 中camera下{camera_name}对应数据类型应为字符串")
+                        raise Exception(f"expect error: {error_path} 中camera下{camera_name}对应数据类型应为字符串")
             for camera_name, _ in config["camera"].items():
                 if camera_name not in camare_images_dict:
                     error_path = self.get_relative_path(config_path)
-                    raise Exception(f"{error_path} 中camera下{camera_name}相机不应该存在")
+                    raise Exception(f"expect error: {error_path} 中camera下{camera_name}相机不应该存在")
 
         # 校验 data_type
         if "data_type" not in config:
             error_path = self.get_relative_path(config_path)
-            raise Exception(f"{error_path} data_type字段缺少")
+            raise Exception(f"expect error: {error_path} data_type字段缺少")
         else:
             if not isinstance(config["data_type"], str):
                 error_path = self.get_relative_path(config_path)
-                raise Exception(f"{error_path} data_type应为字符串")
+                raise Exception(f"expect error: {error_path} data_type应为字符串")
             if config["data_type"] not in POINTCLOUD_TYPE:
                 error_path = self.get_relative_path(config_path)
-                raise Exception(f"{error_path} data_type值错误")
+                raise Exception(f"expect error: {error_path} data_type值错误")
         
         # 校验融合参数
 
         if config["data_type"] != POINTCLOUD:
             if "sensor_params" not in config:
                 error_path = self.get_relative_path(config_path)
-                raise Exception(f"{error_path} sensor_params字段缺少")
+                raise Exception(f"expect error: {error_path} sensor_params字段缺少")
             sensor_params = config["sensor_params"]
             if not isinstance(sensor_params,dict):
                 error_path = self.get_relative_path(config_path)
-                raise Exception(f"{error_path} sensor_params应为字典")
+                raise Exception(f"expect error: {error_path} sensor_params应为字典")
 
         # 融合点云 FUSION_POINTCLOUD
         if config["data_type"] == FUSION_POINTCLOUD:
             for camera_name, _ in camare_images_dict.items():
                 if camera_name not in sensor_params:
                     error_path = self.get_relative_path(config_path)
-                    raise Exception(f"{error_path} sensor_params下缺少相机{camera_name}的融合参数")
+                    raise Exception(f"expect error: {error_path} sensor_params下缺少相机{camera_name}的融合参数")
                 sensor_param = sensor_params[camera_name]
                 is_error, error_str = self.check_sensor_param(sensor_param)
                 if is_error:
                     error_path = self.get_relative_path(config_path)
-                    raise Exception(f"{error_path} sensor_params下相机{camera_name} {error_str}")
+                    raise Exception(f"expect error: {error_path} sensor_params下相机{camera_name} {error_str}")
                 
         # 单帧融合点云 SINGLE_FUSION_POINTCLOUD
         elif config["data_type"] == SINGLE_FUSION_POINTCLOUD:
             for pcd_file_name, _ in pcd_files_info.items():
                 if pcd_file_name not in sensor_params:
                     error_path = self.get_relative_path(config_path)
-                    raise Exception(f"{error_path} 点云文件:{pcd_file_name} 缺少对应参数")
+                    raise Exception(f"expect error: {error_path} 点云文件:{pcd_file_name} 缺少对应参数")
                 if not isinstance(sensor_params[pcd_file_name], dict):
                     error_path = self.get_relative_path(config_path)
-                    raise Exception(f"{error_path} 点云文件:{pcd_file_name} 参数应为字典类型")
+                    raise Exception(f"expect error: {error_path} 点云文件:{pcd_file_name} 参数应为字典类型")
                 
                 for camera_name, _ in camare_images_dict.items():
                     if camera_name not in sensor_params[pcd_file_name]:
                         error_path = self.get_relative_path(config_path)
-                        raise Exception(f"{error_path} 点云文件{pcd_file_name}缺少相机{camera_name}的融合参数")
+                        raise Exception(f"expect error: {error_path} 点云文件{pcd_file_name}缺少相机{camera_name}的融合参数")
                     sensor_param = sensor_params[pcd_file_name][camera_name]
                     is_error, error_str = self.check_sensor_param(sensor_param)
                     if is_error:
                         error_path = self.get_relative_path(config_path)
-                        raise Exception(f"{error_path} sensor_params 点云文件{pcd_file_name} 相机{camera_name} {error_str}")
+                        raise Exception(f"expect error: {error_path} sensor_params 点云文件{pcd_file_name} 相机{camera_name} {error_str}")
         
         # 校验pose信息
         if "poses" in config:
             for pcd_file_name, _ in pcd_files_info.items():
                 if pcd_file_name not in config["poses"]:
                     error_path = self.get_relative_path(config_path)
-                    raise Exception(f"{error_path} 点云文件:{pcd_file_name} 缺少pose参数")
+                    raise Exception(f"expect error: {error_path} 点云文件:{pcd_file_name} 缺少pose参数")
                 try:
                     assert(isinstance(config["poses"][pcd_file_name], list))
                     for i in range(16):
                         assert(isinstance(config["poses"][pcd_file_name][i],float))
                 except:
-                    raise Exception(f"{error_path} 点云文件:{pcd_file_name} pose参数错误 应为16位float的list")
+                    raise Exception(f"expect error: {error_path} 点云文件:{pcd_file_name} pose参数错误 应为16位float的list")
 
 
         
@@ -431,10 +432,9 @@ class pointcloud_upload(upload):
         segment_root_count = len(segment_roots)
         for index, segment_root in enumerate(segment_roots):
             
-            if self.debug:
-                debug_path = self.get_relative_path(segment_root)
-                segment_root_index = index + 1
-                print(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
+            debug_path = self.get_relative_path(segment_root)
+            segment_root_index = index + 1
+            self.loged(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
             
             pcd_files_info = self.check_lidar_root(segment_root)
             camare_images_dict = self.check_camera_root(segment_root)

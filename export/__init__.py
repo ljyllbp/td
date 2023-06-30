@@ -6,7 +6,7 @@ from urllib import parse
 import threading
 import time
 from utils import executor
-
+from utils.pulic_tool import raise_error, record_error
 
 class Exporter(object):
     def __init__(self,out,task_batch_key,ak,host="http://label-std.testin.cn",download_type="label",have_more_info=False,debug=True):
@@ -20,6 +20,13 @@ class Exporter(object):
         # download_type str label(标注结果)/original(原始文件)/original_and_label(标注结果加原始文件)
 
         self.out = out.replace("\\","/").replace("//","/") # 保存路径
+
+        time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
+        pre = os.path.expanduser('~') + f"/.td/export/{time_str}/" + os.path.basename(out)
+        self.error_record_path = f"{pre}/error.txt"
+        self.log_path = f"{pre}/log"
+        self.log_fp = self.get_log_fp()
+
         self.task_batch_key = task_batch_key # 任务key
         self.ak = ak # 密钥
         self.host = host # host
@@ -92,6 +99,27 @@ class Exporter(object):
     def set_executor(self, thread_num):
         self.executor = executor.Executor(thread_num)
 
+    def get_log_fp(self):
+        self.make_dir(self.log_path)
+        log_fp = open(self.log_path, "a", encoding="utf-8")
+        log_fp.write("-----------------TESTIN TD LOG-----------------\n")
+        log_fp.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
+        log_fp.write("\n")
+        return log_fp
+    
+    def loged(self, str_, end = None):
+        if end is None:
+            self.log_fp.write(str(str_) + "\n")
+        else:
+            self.log_fp.write(str(str_) + end)
+        if self.debug:
+            print(str_, end=end)
+    
+    def make_dir(self, file_path):
+        file_root = os.path.dirname(file_path)
+        if not os.path.exists(file_root):
+            os.makedirs(file_root)
+
     def get_params(self, page):
         params = {
             "page": page,
@@ -131,55 +159,61 @@ class Exporter(object):
         self.items = []
 
     def get_items(self):
-        page = 1
-        
-        params = self.get_params(page)
-        
-        headers = {"Access-Key": self.ak}
-        
-        while True:
-            params["page"] = page
-            r = requests.get(self.host_task_list, params=params, headers=headers)
+        try:
+            page = 1
+            
+            params = self.get_params(page)
+            
+            headers = {"Access-Key": self.ak}
+            
+            while True:
+                params["page"] = page
+                r = requests.get(self.host_task_list, params=params, headers=headers)
 
-            assert r.status_code == 200
-            res = r.json()
-            try:
+                assert r.status_code == 200
+                res = r.json()
+                
                 self.dataset_type = res["data"]["dataset_type"]
-            except:
-                raise Exception("请检查参数，或下载数为0")
-            self.project_key = res["data"]["project_key"]
-            
-            for item in res["data"]["items"]:
-                self.items.append(item)
-            
-            if res["data"]["meta"]["total_num"] % 20 == 0:
-                page_total = int(res["data"]["meta"]["total_num"] / 20)
-            else:
-                page_total = int(res["data"]["meta"]["total_num"] / 20) + 1
-            
-            if self.debug:
-                print(
+                
+                
+                
+                self.project_key = res["data"]["project_key"]
+                
+                for item in res["data"]["items"]:
+                    self.items.append(item)
+                
+                if res["data"]["meta"]["total_num"] % 20 == 0:
+                    page_total = int(res["data"]["meta"]["total_num"] / 20)
+                else:
+                    page_total = int(res["data"]["meta"]["total_num"] / 20) + 1
+                
+                self.loged(
                     f"task_batch_key:{self.task_batch_key} [DOWNLOAD_ITEMS] pageTotal:{page_total}, current Page:{res['data']['meta']['page']}, per page items:{res['data']['meta']['page_num']}"
                 )
-            page += 1
-            if page > page_total:
-                break
-        self.get_download_files_count()
-        self.reset_search_criteria()
+                page += 1
+                if page > page_total:
+                    break
+            self.get_download_files_count()
+            self.reset_search_criteria()
+        except Exception as e:
+            record_error(e, self.error_record_path)
+            raise_error("expect error: 请检查参数，或下载数为0")
 
     def download_files(self, overwrite=False):
-        if self.download_type == "label":
-            self.download_label_files(overwrite)
-        elif self.download_type == "original":
-            self.download_original_files(overwrite)
-        else:
-            self.download_label_files(overwrite)
-            self.download_original_files(overwrite)
-        self.retry_function_execution()
-        if self.dataset_type == "text":
-            if self.debug:
-                print(f"[TEXT_FILES_MERGE]")
-            self.text_files_merge()
+        try:
+            if self.download_type == "label":
+                self.download_label_files(overwrite)
+            elif self.download_type == "original":
+                self.download_original_files(overwrite)
+            else:
+                self.download_label_files(overwrite)
+                self.download_original_files(overwrite)
+            self.retry_function_execution()
+            if self.dataset_type == "text":
+                self.text_files_merge()
+        except Exception as e:
+            record_error(e, self.error_record_path)
+            raise_error("expect error: 下载文件失败") 
     
     def retry_function_execution(self):
         
@@ -195,7 +229,6 @@ class Exporter(object):
                 fail_count = 0
                 for function in old_executor_functions:
                     if function[0].exception():
-                        # print(str(function[0].exception()))
                         fail_count += 1
                     elif function[0].done():
                         success_count += 1
@@ -203,9 +236,8 @@ class Exporter(object):
                     break
                 time.sleep(1)
             
-            if self.debug:
-                download_round_count = self.retry_count - retry_count + 1
-                print(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_BY_ROUND_RESULT] download_round_count:{download_round_count}, total:{total_count}, success:{success_count}, fail:{fail_count}")
+            download_round_count = self.retry_count - retry_count + 1
+            self.loged(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_BY_ROUND_RESULT] download_round_count:{download_round_count}, total:{total_count}, success:{success_count}, fail:{fail_count}")
             
             for function in old_executor_functions:
                 if function[0].exception():
@@ -236,15 +268,14 @@ class Exporter(object):
         self.fail_downloaded_files_count = fail_count
         self.success_downloaded_files_count = self.download_files_count - self.fail_downloaded_files_count
 
-        if self.debug:
-            if fail_count != 0:
-                download_round_count = self.retry_count - retry_count + 1
-                print(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_BY_ROUND_RESULT] download_round_count:{download_round_count}, total:{total_count}, success:{success_count}, fail:{fail_count}")
+        if fail_count != 0:
+            download_round_count = self.retry_count - retry_count + 1
+            self.loged(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_BY_ROUND_RESULT] download_round_count:{download_round_count}, total:{total_count}, success:{success_count}, fail:{fail_count}")
 
-            if self.fail_downloaded_files_count != 0:
-                print(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_RESULT] failed, total:{self.download_files_count}, success:{self.success_downloaded_files_count}, fail:{self.fail_downloaded_files_count}")
-            else:
-                print(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_RESULT] succeed, total:{self.download_files_count}, success:{self.success_downloaded_files_count}, fail:{self.fail_downloaded_files_count}")
+        if self.fail_downloaded_files_count != 0:
+            self.loged(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_RESULT] failed, total:{self.download_files_count}, success:{self.success_downloaded_files_count}, fail:{self.fail_downloaded_files_count}")
+        else:
+            self.loged(f"task_batch_key:{self.task_batch_key} [DOWNLOAD_RESULT] succeed, total:{self.download_files_count}, success:{self.success_downloaded_files_count}, fail:{self.fail_downloaded_files_count}")
 
     def get_download_label_files_count(self):
         download_label_files_count = 0
@@ -282,8 +313,8 @@ class Exporter(object):
             
     def get_download_files_count(self):
 
-        if self.debug:
-                print(f"task_batch_key:{self.task_batch_key} [STATISTICAL_DOWNLOAD_FILES_COUNT] ",end="")
+        
+        self.loged(f"task_batch_key:{self.task_batch_key} [STATISTICAL_DOWNLOAD_FILES_COUNT] ",end="")
         
         if self.download_type == "label":
             self.download_files_count = self.get_download_label_files_count()
@@ -294,8 +325,7 @@ class Exporter(object):
         else:
             self.download_files_count = self.get_download_label_files_count() + self.get_download_original_files_count()
         
-        if self.debug:
-            print(self.download_files_count)
+        self.loged(self.download_files_count)
 
     def download_label_file(self,task,item,overwrite):
 
@@ -424,12 +454,11 @@ class Exporter(object):
             self.downloaded_files_count += 1
             flag_downloaded_files_count_change = True
             
-            if self.debug:
-                debug_path = self.get_debug_path(save_path)
-                if is_exist:
-                    print(f"task_batch_key:{self.task_batch_key} [{debug_str}] {self.downloaded_files_count}/{self.download_files_count} {debug_path} already exists")
-                else:
-                    print(f"task_batch_key:{self.task_batch_key} [{debug_str}] {self.downloaded_files_count}/{self.download_files_count} {debug_path}")
+            debug_path = self.get_debug_path(save_path)
+            if is_exist:
+                self.loged(f"task_batch_key:{self.task_batch_key} [{debug_str}] {self.downloaded_files_count}/{self.download_files_count} {debug_path} already exists")
+            else:
+                self.loged(f"task_batch_key:{self.task_batch_key} [{debug_str}] {self.downloaded_files_count}/{self.download_files_count} {debug_path}")
         except Exception as e:
             if flag_downloaded_files_count_change:
                 self.downloaded_files_count -= 1
@@ -463,8 +492,8 @@ class Exporter(object):
         items_save_path = self.out + "/" + self.task_batch_key + ".json"
 
         debug_path = self.get_debug_path(items_save_path)
-        if self.debug:
-            print(f"task_batch_key:{self.task_batch_key} [SAVE_ITEMS] {debug_path}")
+        
+        self.loged(f"task_batch_key:{self.task_batch_key} [SAVE_ITEMS] {debug_path}")
 
         items_save_root = os.path.dirname(items_save_path)
         if not os.path.exists(items_save_root):
@@ -477,8 +506,8 @@ class Exporter(object):
         items_load_path = self.out + "/" + self.task_batch_key + ".json"
 
         debug_path = self.get_debug_path(items_load_path)
-        if self.debug:
-            print(f"task_batch_key:{self.task_batch_key} [LOAD_ITEMS] {debug_path}")
+        
+        self.loged(f"task_batch_key:{self.task_batch_key} [LOAD_ITEMS] {debug_path}")
 
         with open(items_load_path, "r", encoding="utf-8") as f:
             self.items = json.load(f)

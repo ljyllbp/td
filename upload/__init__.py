@@ -9,6 +9,8 @@ import uuid
 import json
 import shutil
 import pathlib
+from utils.pulic_tool import raise_error, retry_fuction, record_error, record_json
+import time
 
 from config import *
 from utils import oss, executor
@@ -20,6 +22,31 @@ Image.MAX_IMAGE_PIXELS = None
 class upload(object):
     def __init__(self, ds_id, data_root):
         self.data_root = data_root.replace("\\","/").replace("//","/")
+        
+        time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
+        pre =  os.path.expanduser('~') + f"/.td/upload/{time_str}/" + os.path.basename(data_root)
+        self.error_record_path = f"{pre}/error.txt"
+        self.add_files_record_path = f"{pre}/add_file_record.json"
+
+        self.batch_sn_request_record_path = f"{pre}/batch_sn_request_record.json"
+        self.batch_sn_request_res_path = f"{pre}/batch_sn_request_res.json"
+
+        self.oss_config_request_record_path = f"{pre}/oss_config_request_record.json"
+        self.oss_config_request_res_path = f"{pre}/oss_config_request_res.json"
+
+        self.file_list_pre_upload_record_path = f"{pre}/file_list_pre_upload_record.json"
+        self.file_list_pre_upload_res_path = f"{pre}/file_list_pre_upload_res.json"
+
+        self.call_back_fail_record_path = f"{pre}/call_back_fail_record.json"
+        self.call_back_success_record_path = f"{pre}/call_back_success_record.json"
+
+        self.id_request_record_path = f"{pre}/id_request_record.json"
+        self.id_request_res_path = f"{pre}/id_request_res.json"
+
+        self.log_path = f"{pre}/log"
+        print(self.log_path)
+        self.log_fp = self.get_log_fp()
+        
 
         self.debug = False
         self.upload_files_path = {}
@@ -70,26 +97,33 @@ class upload(object):
         self.is_force_Compressed = is_force_Compressed
     
     def save_add_files(self):
-        with open(self.data_root+"/"+ self.add_file_name, "w", encoding="utf-8") as f:
-            json.dump(self.add_files_path, f, ensure_ascii=False)
+        add_files_record_root = os.path.dirname(self.add_files_record_path)
+        if not os.path.exists(add_files_record_root):
+            os.makedirs(add_files_record_root)
+        with open(self.add_files_record_path, "w", encoding="utf-8") as f:
+            json.dump(self.add_files_path, f, ensure_ascii=False, indent=4)
     
     @staticmethod
     def get_data_type(host, ds_id, ak):
-        url_ds_info = f"{host}/v2/datasets/{ds_id}"
-        headers = {"Access-Key": ak, "User-Agent": "apifox/1.0.0"}
-        r = requests.get(url_ds_info, headers=headers)
-        assert r.status_code == 200
-        res = r.json()
-        return res["data"]["data_type"]
+        try:
+            url_ds_info = f"{host}/v2/datasets/{ds_id}"
+            headers = {"Access-Key": ak, "User-Agent": "apifox/1.0.0"}
+            r = requests.get(url_ds_info, headers=headers)
+            assert r.status_code == 200
+            res = r.json()
+            return res["data"]["data_type"]
+        except Exception as e:
+            error_str = f"expect error: 获取数据集类型失败，请检查 host:{host}，ds_id:{ds_id}，ak:{ak}"
+            raise_error(error_str)
 
     def assert_illegal_characters(self, path):
         for character in ILLEGAL_CHARACTER:
             if character in path:
-                raise Exception(f"{path} 路径中不允许出现特殊字符'{character}'")
+                raise Exception(f"expect error: {path} 路径中不允许出现特殊字符'{character}'")
         try:
             path.encode("utf-8")
         except:
-            raise Exception(f"{path} 请使用符合规范的UTF-8字符")
+            raise Exception(f"expect error: {path} 请使用符合规范的UTF-8字符")
 
     def get_id_prelabel(self, id_index, ids):
         while True:
@@ -114,10 +148,8 @@ class upload(object):
                 raise Exception(f"非法字符:{word}, 应为大小写字母,数字,'-','_'")
         
     def delete_add_files(self):
-        if self.debug:
-            print("删除过程数据")
-        if os.path.exists(self.data_root+"/"+ self.add_file_name):
-            with open(self.data_root+"/"+ self.add_file_name, "r", encoding="utf-8") as f:
+        if os.path.exists(self.add_files_record_path):
+            with open(self.add_files_record_path, "r", encoding="utf-8") as f:
                 add_files_path = json.load(f)
                 for add_file_path in add_files_path:
                     if os.path.exists(add_file_path):
@@ -125,84 +157,136 @@ class upload(object):
                             os.remove(add_file_path)
                         else:
                             shutil.rmtree(add_file_path)
-            os.remove(self.data_root+"/"+ self.add_file_name)
+            os.remove(self.add_files_record_path)
 
     def get_upload_class(self):
-        if self.oss_config["oss_type"] == "ali_oss":
+        oss_type = self.oss_config["oss_type"]
+        if oss_type == "ali_oss":
             self.oss_class = oss.AliyunClass()
-        else:
+        elif oss_type == "minio":
             self.oss_class = oss.MinioClass()
+        else:
+            raise Exception(f"expect error: 暂不支持{oss_type}类型对象存储")
+
+    def get_log_fp(self):
+        self.make_dir(self.log_path)
+        log_fp = open(self.log_path, "a", encoding="utf-8")
+        log_fp.write("-----------------TESTIN TD LOG-----------------\n")
+        log_fp.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
+        log_fp.write("\n")
+        return log_fp
+    
+    def loged(self, str_, end = None):
+        if end is None:
+            self.log_fp.write(str(str_) + "\n")
+        else:
+            self.log_fp.write(str(str_) + end)
+        if self.debug:
+            print(str_, end=end)
+    
+    def close_log_fp(self):
+        self.log_fp.close()
 
     def get_batch_sn(self):
-        if self.debug:
-            print("获取批次号")
+        
+        self.loged("获取批次号")
+        url_batch_sn = f"{self.host}/v2/datasets/{self.ds_id}/batches"
+        headers = {"Access-Key": self.ak}
+        params = {"dataset_id": self.ds_id}
+        json_data = {
+           "url_batch_sn": url_batch_sn,
+           "headers": headers,
+           "params": params,
+           "method": "post"
+        }
+        record_json(json_data, self.batch_sn_request_record_path)
+        r, errors, success_flag = retry_fuction(self.retry_count, requests.post, url_batch_sn, params=params, headers=headers)
+        if not success_flag:
+            record_error(errors, self.error_record_path)
+            raise Exception(f"expect error: 获取批次号出错")
         try:
-            url_batch_sn = f"{self.host}/v2/datasets/{self.ds_id}/batches"
-            headers = {"Access-Key": self.ak}
-            params = {"dataset_id": self.ds_id}
-            r = requests.post(url_batch_sn, params=params, headers=headers)
             assert r.status_code == 200
             res = r.json()
-            # if self.debug:
-            #     print(json.dumps(res))
+            record_json(res, self.batch_sn_request_res_path)
             self.batch_sn = res["data"]["batch_sn"]
         except Exception as e:
-            raise Exception(f"获取批次号出错:{str(e)}")
+            raise Exception(f"expect error: 获取批次号出错")
 
     def get_oss_config(self):
-        if self.debug:
-            print("获取云存储配置")
-        try:
-            url_oss_config = f"{self.host}/v2/datasets/{self.ds_id}/oss-config"
+        
+        self.loged("获取云存储配置")
+        
+        url_oss_config = f"{self.host}/v2/datasets/{self.ds_id}/oss-config"
+        headers = {"Access-Key": self.ak, "User-Agent": "apifox/1.0.0"}
+        params = {"dataset_id": self.ds_id, "upload_flag": "bucket_default"}
+        json_data = {
+           "url_oss_config": url_oss_config,
+           "headers": headers,
+           "params": params,
+           "method": "get"
+        }
+        record_json(json_data, self.oss_config_request_record_path)
+        
+        r, errors, success_flag = retry_fuction(self.retry_count, requests.get, url_oss_config, params=params, headers=headers)
+        if not success_flag:
+            record_error(errors, self.error_record_path)
+            raise Exception(f"expect error: 获取云存储配置出错")
 
-            headers = {"Access-Key": self.ak, "User-Agent": "apifox/1.0.0"}
-            params = {"dataset_id": self.ds_id, "upload_flag": "bucket_default"}
-            r = requests.get(url_oss_config, params=params, headers=headers)
+        try:
             assert r.status_code == 200
             res = r.json()
-            # if self.debug:
-            #     print(json.dumps(res))
+            record_json(res, self.oss_config_request_res_path)
             
             self.oss_config = res["data"]
             if self.oss_config["oss_type"] == "minio":
                 self.oss_config["bucket"] = BUCKET
 
             self.get_upload_class()
+
         except Exception as e:
-            raise Exception(f"获取云存储配置出错:{str(e)}")
+            raise Exception(f"expect error: 获取云存储配置出错")
 
     def get_id(self):
-        if self.debug:
-            print("获取id")
+        
+        self.loged("获取id")
+        
+
+        timestamp = str(int(time.time()))
+        uuid_str = str(uuid.uuid4())
+        uuid_str_head = uuid_str[:10]
+
+        url_id = (
+            f"{self.host}/v2/datasets/{self.ds_id}/batches/{self.batch_sn}/files"
+        )
+        headers = {"Access-Key": self.ak, "Content-Type": "application/json"}
+        json = [
+            {
+                "name": f"{timestamp}__{uuid_str}.zip",
+                "path": f"{timestamp}__{uuid_str}.zip",
+                "batch_file_status": 1,
+                "size": 1,
+                "md5": f"{timestamp}{uuid_str_head}",
+            }
+        ]
+
+        json_data = {
+           "url_id": url_id,
+           "headers": headers,
+           "json": json,
+           "method": "post"
+        }
+        record_json(json_data, self.id_request_record_path)
+        r, errors, success_flag = retry_fuction(self.retry_count, requests.post, url_id, json=json, headers=headers)
+        if not success_flag:
+            record_error(errors, self.error_record_path)
+            raise Exception(f"expect error: 获取id出错")
         try:
-
-            timestamp = str(int(time.time()))
-            uuid_str = str(uuid.uuid4())
-            uuid_str_head = uuid_str[:10]
-
-            url_id = (
-                f"{self.host}/v2/datasets/{self.ds_id}/batches/{self.batch_sn}/files"
-            )
-            headers = {"Access-Key": self.ak, "Content-Type": "application/json"}
-            json = [
-                {
-                    "name": f"{timestamp}__{uuid_str}.zip",
-                    "path": f"{timestamp}__{uuid_str}.zip",
-                    "batch_file_status": 1,
-                    "size": 1,
-                    "md5": f"{timestamp}{uuid_str_head}",
-                }
-            ]
-
-            r = requests.post(url_id, json=json, headers=headers)
             assert r.status_code == 200
             res = r.json()
-            if self.debug:
-                print(json.dumps(res))
+            record_json(res, self.id_request_res_path)
             self.id = res["data"]["id"]
-
         except Exception as e:
-            raise Exception(f"获取id出错:{str(e)}")
+            raise Exception(f"expect error: 获取id出错")
 
     def ignore(self, name):
         # 隐藏文件 mac文件
@@ -226,7 +310,7 @@ class upload(object):
             file_type = self.get_file_type(file_path)
             if file_type not in file_types:
                 error_path = self.get_relative_path(file_path)
-                raise Exception(f"{error_path} {error_str}")
+                raise Exception(f"expect error: {error_path} {error_str}")
 
             file_name = self.get_file_name(file_path)
 
@@ -234,7 +318,7 @@ class upload(object):
                 error_path = self.get_relative_path(file_path)
                 file_path_with_same_name = files_info[file_name]["file_path"]
                 error_path_ = self.get_relative_path(file_path_with_same_name)
-                raise Exception(f"{error_path} {error_path_} 同名文件")
+                raise Exception(f"expect error: {error_path} {error_path_} 同名文件")
 
             files_info[file_name] = {
                 "file_type": file_type,
@@ -251,29 +335,29 @@ class upload(object):
         try:
             file_type = os.path.splitext(file_path)[1][1:].lower()
             return file_type
-        except:
+        except Exception as e:
             error_path = self.get_relative_path(file_path)
-            raise Exception(f"{error_path} 获取文件类型失败")
+            raise Exception(f"expect error: {error_path} 获取文件类型失败")
 
     def get_file_name(self, file_path):
         try:
             file = os.path.basename(file_path)
-            file_name = os.path.splitext(file)[0].lower()
+            file_name = os.path.splitext(file)[0]
             return file_name
-        except:
+        except Exception as e:
             error_path = self.get_relative_path(file_path)
-            raise Exception(f"{error_path} 获取文件名称失败")
+            raise Exception(f"expect error: {error_path} 获取文件名称失败")
 
     def is_file(self, file_path):
         if not os.path.isfile(file_path):
             error_path = self.get_relative_path(file_path)
-            raise Exception(f"{error_path} 应为文件")
+            raise Exception(f"expect error: {error_path} 应为文件")
         return True
 
     def is_root(self, file_root):
         if not os.path.isdir(file_root):
             error_path = self.get_relative_path(file_root)
-            raise Exception(f"{error_path} 应为目录")
+            raise Exception(f"expect error: {error_path} 应为目录")
         return True
 
     # 获取序列目录
@@ -291,12 +375,12 @@ class upload(object):
 
             if os.path.isfile(segment_root):
                 error_path = self.get_relative_path(segment_root)
-                raise Exception(f"错误文件:{error_path},应为序列目录")
+                raise Exception(f"expect error: 错误文件:{error_path},应为序列目录")
 
             segment_roots.append(segment_root)
 
         if len(segment_roots) == 0:
-            raise Exception("序列目录数量为0")
+            raise Exception("expect error: 序列目录数量为0")
 
         segment_roots.sort()
 
@@ -308,9 +392,9 @@ class upload(object):
                 buffer = f.read()
             file_md5 = hashlib.md5(buffer).hexdigest()
             return file_md5
-        except:
+        except Exception as e:
             error_path = self.get_relative_path(file_path)
-            raise Exception(f"{error_path} 获取文件md5失败")
+            raise Exception(f"expect error: {error_path} 获取文件md5失败")
 
     def get_file_size(self, file_path):
         try:
@@ -320,9 +404,9 @@ class upload(object):
             if remainder > 0:
                 file_size += 1
             return file_size
-        except:
+        except Exception as e:
             error_path = self.get_relative_path(file_path)
-            raise Exception(f"{error_path} 获取文件大小失败")
+            raise Exception(f"expect error: {error_path} 获取文件大小失败")
 
     def get_pic_size(self, pic_file_path):
         try:
@@ -331,9 +415,9 @@ class upload(object):
             h = img.height
             img.close()
             return str(w) + "*" + str(h)
-        except:
+        except Exception as e:
             error_path = self.get_relative_path(pic_file_path)
-            raise Exception(f"{error_path} 获取图像尺寸失败")
+            raise Exception(f"expect error: {error_path} 获取图像尺寸失败")
     
     def make_dir(self, file_path):
         file_root = os.path.dirname(file_path)
@@ -363,8 +447,8 @@ class upload(object):
 
     # 循环文件列表添加每一个文件的文件序数
     def add_order_sn_and_sequence_id(self):
-        if self.debug:
-            print("获取文件id")
+        
+        self.loged("获取文件id")
         segment_id = -1
         for segment_relative_root in sorted(self.upload_files_path.keys()):
             segment_id += 1
@@ -382,8 +466,8 @@ class upload(object):
                 ] = str(segment_id).rjust(5, "0")
 
     def add_oss_file_path(self):
-        if self.debug:
-            print("获取云存储路径")
+        
+        self.loged("获取云存储路径")
         for segment_relative_root in self.upload_files_path.keys():
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
@@ -408,8 +492,11 @@ class upload(object):
         self.secure_debug(local_file_path)
 
     def upload_files(self):
-        if self.debug:
-            print("开始上传文件")
+        
+        self.loged("开始上传文件")
+
+        record_json(self.upload_files_path, self.file_list_pre_upload_record_path)
+
         for segment_relative_root in self.upload_files_path.keys():
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
@@ -421,6 +508,8 @@ class upload(object):
                     [fs, self.upload_file, (segment_relative_root, file_relative_path)]
                 )
         self.retry_function_execution()
+        
+        record_json(self.upload_files_path, self.file_list_pre_upload_res_path)
 
     def secure_debug(self, local_file_path):
         flag_uploaded_files_count_change = False
@@ -430,11 +519,11 @@ class upload(object):
             self.uploaded_files_count += 1
             flag_uploaded_files_count_change = True
 
-            if self.debug:
-                debug_path = self.get_relative_path(local_file_path)
-                print(
-                    f"上传: {self.uploaded_files_count}/{self.upload_files_count} {debug_path}"
-                )
+            
+            debug_path = self.get_relative_path(local_file_path)
+            self.loged(
+                f"上传: {self.uploaded_files_count}/{self.upload_files_count} {debug_path}"
+            )
 
         except Exception as e:
             if flag_uploaded_files_count_change:
@@ -476,11 +565,11 @@ class upload(object):
                     break
                 time.sleep(1)
 
-            if self.debug:
-                upload_round_count = self.retry_count - retry_count + 1
-                print(
-                    f"第{upload_round_count}轮上传: 总和:{total_count}, 成功:{success_count}, 失败:{fail_count}"
-                )
+            
+            upload_round_count = self.retry_count - retry_count + 1
+            self.loged(
+                f"第{upload_round_count}轮上传: 总和:{total_count}, 成功:{success_count}, 失败:{fail_count}"
+            )
 
             for function in old_executor_functions:
                 if function[0].exception():
@@ -525,21 +614,21 @@ class upload(object):
             self.upload_files_count - self.fail_uploaded_files_count
         )
 
-        if self.debug:
-            if fail_count != 0:
-                upload_round_count = self.retry_count - retry_count + 1
-                print(
-                    f"第{upload_round_count}轮上传: 总和:{total_count}, 成功:{success_count}, 失败:{fail_count}"
-                )
+        
+        if fail_count != 0:
+            upload_round_count = self.retry_count - retry_count + 1
+            self.loged(
+                f"第{upload_round_count}轮上传: 总和:{total_count}, 成功:{success_count}, 失败:{fail_count}"
+            )
 
-            if self.fail_uploaded_files_count != 0:
-                print(
-                    f"上传失败, 总和:{self.upload_files_count}, 成功:{self.success_uploaded_files_count}, 失败:{self.fail_uploaded_files_count}"
-                )
-            else:
-                print(
-                    f"上传成功, 总和:{self.upload_files_count}, 成功:{self.success_uploaded_files_count}, 失败:{self.fail_uploaded_files_count}"
-                )
+        if self.fail_uploaded_files_count != 0:
+            self.loged(
+                f"上传失败, 总和:{self.upload_files_count}, 成功:{self.success_uploaded_files_count}, 失败:{self.fail_uploaded_files_count}"
+            )
+        else:
+            self.loged(
+                f"上传成功, 总和:{self.upload_files_count}, 成功:{self.success_uploaded_files_count}, 失败:{self.fail_uploaded_files_count}"
+            )
 
     def change_path_original(self):
         for segment_relative_root in self.upload_files_path.keys():
@@ -554,10 +643,28 @@ class upload(object):
             "Content-Type": "application/json",
             "Access-Key": self.ak,
         }
-        data = {"batch_sn": self.batch_sn, "msg": str(e)}
-        r = requests.post(
-            self.error_callback_url, json=data, timeout=20, headers=headers
-        )
+        error_str = str(e)
+        if error_str.startswith("expect error: "):
+            error_str = error_str[14:]
+        data = {"batch_sn": self.batch_sn, "msg": error_str}
+        json_data = {
+            "error_callback_url": self.error_callback_url,
+            "headers": headers,
+            "json": data,
+            "method": "post"
+        }        
+        try:
+            record_json(json_data,self.call_back_fail_record_path)
+        except Exception as record_e:
+            record_error(record_e, self.error_record_path)
+
+        res, errors, success_flag = retry_fuction(self.retry_count, requests.post, self.error_callback_url, json=data, timeout=20, headers=headers)
+        
+        if not success_flag:
+            record_error(error_str, self.error_record_path)
+            record_error(errors, self.error_record_path)
+            error_str = "expect error: 回调错误接口失败"
+            raise_error(error_str)
 
     def call_back_success(self):
         self.callback_url = (
@@ -585,7 +692,23 @@ class upload(object):
             "Content-Type": "application/json",
             "Access-Key": self.ak,
         }
-       
-        r = requests.post(self.callback_url, json=data, timeout=20, headers=headers)
 
-        assert r.status_code == 200
+        json_data = {
+            "callback_url": self.callback_url,
+            "json": data,
+            "headers": headers,
+            "method": "post"
+        }
+        
+        
+        res, errors, success_flag = retry_fuction(self.retry_count, requests.post, self.callback_url, json=data, timeout=20, headers=headers)
+
+
+        try:
+            record_json(json_data, self.call_back_success_record_path)
+        except Exception as record_e:
+            record_error(record_e, self.error_record_path)
+
+        if not success_flag:
+            record_error(errors, self.error_record_path)
+            raise Exception("expect error: 提交文件列表失败")
