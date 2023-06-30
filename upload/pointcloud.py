@@ -1,7 +1,7 @@
 from upload import *
 from config import *
 import json
-import sys
+import subprocess
 
 class pointcloud_upload(upload):    
     def start_upload(self):
@@ -50,25 +50,25 @@ class pointcloud_upload(upload):
             if self.is_force_Compressed:
                 if self.debug:
                     if OS_TYPE != "win":
-                        os.system(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 1")
+                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 1", shell=True)
                     else:
-                        os.system(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 1")
+                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 1", shell=True)
                 else:
                     if OS_TYPE != "win":
-                        os.system(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 0")
+                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 0", shell=True)
                     else:
-                        os.system(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 0")
+                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 0", shell=True)
             else:
                 if self.debug:
                     if OS_TYPE != "win":
-                        os.system(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 1")
+                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 1", shell=True)
                     else:
-                        os.system(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 1")
+                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 1", shell=True)
                 else:
                     if OS_TYPE != "win":
-                        os.system(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 0")
+                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 0", shell=True)
                     else:
-                        os.system(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 0")
+                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 0")
                     
             if os.path.exists(res_bin_path):
                os.remove(res_bin_path)

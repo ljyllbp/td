@@ -12,7 +12,6 @@ from export import *
 from utils import td_tool
 import os
 from utils.pulic_tool import raise_error
-import sys
 
 
 def get_upload_class(host, ds_id, ak):

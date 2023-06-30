@@ -1,9 +1,6 @@
 from oss2 import Auth, Bucket, StsAuth
 import oss2
-import json
-import urllib3
 import boto3
-import os
 from botocore.client import Config
 from config import *
 
