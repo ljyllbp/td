@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape
 class text_upload(upload):    
     def start_upload(self):
         try:
-            self.delete_add_files()
+            # self.delete_add_files()
             self.check_data_root()
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
@@ -38,6 +38,7 @@ class text_upload(upload):
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
             ].keys():
+                file_relative_path = file_relative_path.replace("\\","/").replace("//","/")
                 if self.oss_config["oss_type"] == "ali_oss":
                     oss_path = (
                         f"/{BUCKET}/{self.ds_id}/{self.batch_sn}/{file_relative_path}"
@@ -195,6 +196,7 @@ class text_upload(upload):
                 text_content_save_path_ = os.path.join(segment_root,file_name,"text",str(data_index).rjust(5, "0") + ".json")
                 text_content_save_relative_path_ = self.get_relative_path(text_content_save_path_)
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_] = self.get_file_info(text_content_save_path)
+                self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["name"] = self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["name"][1:]
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["path_original"] = text_content_save_path
                 self.upload_files_count += 1
                 
@@ -210,6 +212,7 @@ class text_upload(upload):
                 pre_label_content_save_path_ = os.path.join(segment_root,file_name,"pre_label",str(data_index).rjust(5, "0") + ".json")
                 pre_label_content_save_relative_path_ = self.get_relative_path(pre_label_content_save_path_)
                 self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_] = self.get_file_info(pre_label_content_save_path)
+                self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_]["name"] = self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_]["name"][1:]
                 self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_]["path_original"] = pre_label_content_save_path
                 self.upload_files_count += 1
                 

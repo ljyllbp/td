@@ -6,6 +6,7 @@ class segment_video_upload(upload):
     def start_upload(self):
         try:
             self.check_data_root()
+            self.segment_split(VIDEO_FILE_TYPES)
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
         except Exception as e:

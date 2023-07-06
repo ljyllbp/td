@@ -2,12 +2,14 @@ from upload import *
 from config import *
 import json
 import subprocess
+from copy import deepcopy
 
 class pointcloud_upload(upload):    
     def start_upload(self):
         
         try:
             self.check_data_root()
+            self.segment_split()
             self.simplify_pcd()
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
@@ -27,53 +29,117 @@ class pointcloud_upload(upload):
             self.call_back_fail(e)
             raise_error(e, self.error_record_path)
     
+    def segment_split(self):
+        if self.debug:
+            print("分包")
+        if self.package_count is None:
+            return
+        
+        self.upload_files_count = 0
+
+        new_upload_files_path = {}
+        for segment_relative_root in self.upload_files_path.keys():
+            segment_name = os.path.basename(segment_relative_root)
+            files = {}
+            config = []
+            for file_relative_path in self.upload_files_path[segment_relative_root].keys():
+                file_name = self.get_file_name(file_relative_path)
+                file_type = self.get_file_type(file_relative_path)
+                if file_name == "config" and file_type == "json" and os.path.dirname(file_relative_path) == segment_relative_root:
+                    config = [
+                        file_relative_path,
+                        self.upload_files_path[segment_relative_root][file_relative_path]
+                    ]
+                else:
+                    if file_name not in files:
+                        files[file_name] = {
+                            "lidar": [],
+                            "camera": [],
+                            "pre_label": []
+                        }
+                    if file_type in POINTCLOUD_FILE_TYPES:
+                        files[file_name]["lidar"].append(file_relative_path)
+                        files[file_name]["lidar"].append(self.upload_files_path[segment_relative_root][file_relative_path])
+                    elif file_type in IMAGE_FILE_TYPES:
+                        files[file_name]["camera"].append(file_relative_path)
+                        files[file_name]["camera"].append(self.upload_files_path[segment_relative_root][file_relative_path])
+                    else:
+                        files[file_name]["pre_label"].append(file_relative_path)
+                        files[file_name]["pre_label"].append(self.upload_files_path[segment_relative_root][file_relative_path])
+            file_index = -1
+            for file_name in sorted(files.keys()):
+                file_index += 1
+                new_segment_name = segment_name + PACKAGE_SPECIAL_STRING + str(file_index // self.package_count).rjust(5,"0")
+                new_segment_relative_root = os.path.join(os.path.dirname(segment_relative_root), new_segment_name)
+
+                if new_segment_relative_root not in new_upload_files_path:
+                    new_upload_files_path[new_segment_relative_root] = {}
+                    new_upload_files_path[new_segment_relative_root][config[0]] = deepcopy(config[1])
+                    self.upload_files_count += 1
+
+                for k, v in files[file_name].items():
+                    for index, _ in enumerate(files[file_name][k]):
+                        if index % 2 != 0:
+                            continue
+                        new_upload_files_path[new_segment_relative_root][files[file_name][k][index]] = files[file_name][k][index+1]
+                        self.upload_files_count += 1
+
+        self.upload_files_path = new_upload_files_path
+
     # 精简点云
     def simplify_pcd(self):
-        if self.is_simplify_pcd:
-            self.loged("精简点云")
-            
-            exe_head = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-            if OS_TYPE == "mac_arm64":
-                exe_path = f"{exe_head}/c/pcdCompressMacM1"
-            elif OS_TYPE == "mac_amd64":
-                exe_path = f"{exe_head}/c/pcdCompressMac"
-            elif OS_TYPE == "win":
-                exe_path = f"{exe_head}\c\pcdCompress.exe"
-            elif OS_TYPE == "ubuntu":
-                exe_path = f"{exe_head}/c/pcdCompressUbuntu"
-            
-            res_bin_path = f"{self.data_root}/.resbin"
-            
-            if os.path.exists(res_bin_path):
-                os.remove(res_bin_path)
+        if not self.is_simplify_pcd:
+            return
+        
+        self.loged("精简点云")
+        
+        exe_head = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        if OS_TYPE == "mac_arm64":
+            exe_path = f"{exe_head}/c/pcdCompressMacM1"
+        elif OS_TYPE == "mac_amd64":
+            exe_path = f"{exe_head}/c/pcdCompressMac"
+        elif OS_TYPE == "win":
+            exe_path = f"{exe_head}\c\pcdCompress.exe"
+        elif OS_TYPE == "ubuntu":
+            exe_path = f"{exe_head}/c/pcdCompressUbuntu"
+        
+        res_bin_path = f"{self.data_root}/.resbin"
+        
+        if os.path.exists(res_bin_path):
+            os.remove(res_bin_path)
 
-            if self.is_force_Compressed:
-                if self.debug:
-                    if OS_TYPE != "win":
-                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 1", shell=True)
-                    else:
-                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 1", shell=True)
+        if self.is_force_Compressed:
+            if self.debug:
+                if OS_TYPE != "win":
+                    subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 1", shell=True)
                 else:
-                    if OS_TYPE != "win":
-                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 0", shell=True)
-                    else:
-                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 0", shell=True)
+                    subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 1", shell=True)
             else:
-                if self.debug:
-                    if OS_TYPE != "win":
-                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 1", shell=True)
-                    else:
-                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 1", shell=True)
+                if OS_TYPE != "win":
+                    subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 1 0", shell=True)
                 else:
-                    if OS_TYPE != "win":
-                        subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 0", shell=True)
-                    else:
-                        subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 0")
-                    
-            if os.path.exists(res_bin_path):
-               os.remove(res_bin_path)
+                    subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 1 0", shell=True)
+        else:
+            if self.debug:
+                if OS_TYPE != "win":
+                    subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 1", shell=True)
+                else:
+                    subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 1", shell=True)
             else:
-                raise Exception("expect error: 点云文件精简失败")
+                if OS_TYPE != "win":
+                    subprocess.check_call(f"{exe_path} '{self.data_root}' '{res_bin_path}' 0 0", shell=True)
+                else:
+                    subprocess.check_call(f"{exe_path} \"{self.data_root}\" \"{res_bin_path}\" 0 0")
+                
+        if os.path.exists(res_bin_path):
+            os.remove(res_bin_path)
+        else:
+            raise Exception("expect error: 点云文件精简失败")
+        
+        for segment_relative_root in self.upload_files_path.keys():
+            for file_relative_path in self.upload_files_path[segment_relative_root].keys():
+                self.upload_files_path[segment_relative_root][file_relative_path]["size"] = self.get_file_size(self.upload_files_path[segment_relative_root][file_relative_path]["path_original"])
+                self.upload_files_path[segment_relative_root][file_relative_path]["md5"] = self.get_file_md5(self.upload_files_path[segment_relative_root][file_relative_path]["path_original"])
 
     # 检查预标注结果文件:id
     def pre_label_file_check(self, pre_label_file_file_path):
@@ -469,7 +535,7 @@ class pointcloud_upload(upload):
             
             pcd_file_path = pcd_file_info["file_path"]
             pcd_file_relative_path = self.get_relative_path(pcd_file_path)
-            self.upload_files_path[segment_relative_root][pcd_file_relative_path] = self.get_file_info(pcd_file_path)
+            self.upload_files_path[segment_relative_root][pcd_file_relative_path] = self.get_file_info(pcd_file_path, size_md5=not(self.is_simplify_pcd))
             self.upload_files_count += 1
 
             # 相机目录

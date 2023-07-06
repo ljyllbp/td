@@ -7,6 +7,7 @@ import threading
 import time
 from utils import executor
 from utils.pulic_tool import raise_error, record_error
+from config import PACKAGE_SPECIAL_STRING
 
 class Exporter(object):
     def __init__(self,out,task_batch_key,ak,host="http://label-std.testin.cn",download_type="label",have_more_info=False,debug=True):
@@ -42,6 +43,8 @@ class Exporter(object):
         self.items = [] # 中间存储信息
         self.errors = []
 
+        self.save_package_name = False
+
         self.work_type = None # 工序
         self.status = None # 工序状态
         self.package_id = None # 包id
@@ -50,6 +53,8 @@ class Exporter(object):
         self.operate_work_type = None # 操作工序，和operate_users联合使用，查询某一个人操作的题
         self.operate_users = None # 操作人id，和operate_work_type联合使用，查询某一个人操作的题
         self.seg_dir_name = None # 序列名，支持多个文件名逗号连接查询
+        self.operate_type = None # 操作类型
+        self.mark_status = None # 标注状态
 
         self.downloaded_files_count = 0 # 已经下载的文件数量
         self.download_files_count = 0 # 需要下载的文件数量
@@ -60,6 +65,9 @@ class Exporter(object):
         self.executor_functions = [] 
         self.lock=threading.Lock()
         self.retry_count = 4 # 下载尝试次数
+
+    def set_save_package_name(self, save_package_name):
+        self.save_package_name = save_package_name
 
     def set_work_type(self, work_type):
         self.work_type = work_type
@@ -86,6 +94,11 @@ class Exporter(object):
     def set_seg_dir_name(self, seg_dir_name):
         self.seg_dir_name = seg_dir_name
 
+    def set_operate_type(self, operate_type):
+        self.operate_type = operate_type
+    
+    def set_mark_status(self, mark_status):
+        self.mark_status = mark_status
 
     def set_download_type(self, download_type):
         self.download_type = download_type
@@ -142,6 +155,11 @@ class Exporter(object):
             params["operate_users"] = self.operate_users
         if self.seg_dir_name != None:
             params["seg_dir_name"] = self.seg_dir_name
+        
+        if self.operate_type != None:
+            params["operate_type"] = self.operate_type
+        if self.mark_status != None:
+            params["mark_status"] = self.mark_status
 
         return params
     
@@ -154,6 +172,8 @@ class Exporter(object):
         self.operate_work_type = None
         self.operate_users = None
         self.seg_dir_name = None
+        self.operate_type = None
+        self.mark_status = None
     
     def clear_items(self):
         self.items = []
@@ -465,6 +485,14 @@ class Exporter(object):
             raise e
         finally:
             self.lock.release()
+    
+    def remove_package_name(self, file_path):
+        if PACKAGE_SPECIAL_STRING not in file_path:
+            return file_path
+        package_name_index = file_path.find(PACKAGE_SPECIAL_STRING)
+        new_file_path = file_path[:package_name_index] + file_path[package_name_index+len(PACKAGE_SPECIAL_STRING)+5:]
+        return new_file_path
+
         
     def get_label_save_path(self, source_url):
         if "?" in source_url:
@@ -473,6 +501,10 @@ class Exporter(object):
             source_url = parse.unquote(source_url)
         source_save_path = self.out + "/" + "/".join(source_url.split("/")[4:])
         label_save_path = "/".join(source_save_path.split("/")[:-2]) + "/label/" + os.path.splitext(source_save_path.split("/")[-1])[0] + ".json"
+
+        if not self.save_package_name:
+            label_save_path = self.remove_package_name(label_save_path)
+
         return label_save_path
     
     def get_source_save_path(self, source_url):
@@ -481,6 +513,10 @@ class Exporter(object):
         else:
             source_url = parse.unquote(source_url)
         source_save_path = self.out + "/" + "/".join(source_url.split("/")[4:])
+        
+        if not self.save_package_name:
+            source_save_path = self.remove_package_name(source_save_path)
+
         return source_save_path
     
     def get_debug_path(self, path):

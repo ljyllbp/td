@@ -44,7 +44,6 @@ class upload(object):
         self.id_request_res_path = f"{pre}/id_request_res.json"
 
         self.log_path = f"{pre}/log"
-        print(self.log_path)
         self.log_fp = self.get_log_fp()
         
 
@@ -53,6 +52,8 @@ class upload(object):
         self.add_files_path = []
         self.add_file_name = ".add_record.json"
         self.move_files = {}
+
+        self.package_count = None
 
         self.is_simplify_pcd = False
         self.is_force_Compressed = False
@@ -69,10 +70,10 @@ class upload(object):
 
         self.oss_class = None
 
-        self.uploaded_files_count = 0  # 已经下载的文件数量
-        self.upload_files_count = 0  # 需要下载的文件数量
-        self.success_uploaded_files_count = 0  # 成功下载的数量
-        self.fail_uploaded_files_count = 0  # 失败下载的数量
+        self.uploaded_files_count = 0  # 已经上传的文件数量
+        self.upload_files_count = 0  # 需要上传的文件数量
+        self.success_uploaded_files_count = 0  # 成功上传的数量
+        self.fail_uploaded_files_count = 0  # 失败上传的数量
 
         self.executor = executor.Executor()  # 多线程
         self.executor_functions = []
@@ -88,6 +89,9 @@ class upload(object):
     def set_host_and_ak(self, host, ak):
         self.host = host
         self.ak = ak
+    
+    def set_package_count(self, package_count):
+        self.package_count = package_count
 
     def set_executor(self, thread_num):
         self.executor = executor.Executor(thread_num)
@@ -113,7 +117,7 @@ class upload(object):
             res = r.json()
             return res["data"]["data_type"]
         except Exception as e:
-            error_str = f"expect error: 获取数据集类型失败，请检查 host:{host}，ds_id:{ds_id}，ak:{ak}"
+            error_str = f"expect error: 获取数据集类型失败，请检查 host:{host}，数据集id:{ds_id}，密钥:{ak}"
             raise_error(error_str)
 
     def assert_illegal_characters(self, path):
@@ -424,11 +428,60 @@ class upload(object):
         if not os.path.exists(file_root):
             os.makedirs(file_root)
 
+    def segment_split(self, file_types):
+        if self.debug:
+            print("分包")
+        if self.package_count is None:
+            return
+        
+        self.upload_files_count = 0
+
+        new_upload_files_path = {}
+        for segment_relative_root in self.upload_files_path.keys():
+            segment_name = os.path.basename(segment_relative_root)
+            files = {}
+            for file_relative_path in self.upload_files_path[segment_relative_root].keys():
+                file_name = self.get_file_name(file_relative_path)
+                file_type = self.get_file_type(file_relative_path)
+      
+                if file_name not in files:
+                    files[file_name] = {
+                        "file": [],
+                        "pre_label": []
+                    }
+                if file_type in file_types:
+                    files[file_name]["file"].append(file_relative_path)
+                    files[file_name]["file"].append(self.upload_files_path[segment_relative_root][file_relative_path])
+                else:
+                    files[file_name]["pre_label"].append(file_relative_path)
+                    files[file_name]["pre_label"].append(self.upload_files_path[segment_relative_root][file_relative_path])
+
+            file_index = -1
+            for file_name in sorted(files.keys()):
+                file_index += 1
+                new_segment_name = segment_name + PACKAGE_SPECIAL_STRING + str(file_index // self.package_count).rjust(5,"0")
+                new_segment_relative_root = os.path.join(os.path.dirname(segment_relative_root), new_segment_name)
+
+                for k, v in files[file_name].items():
+                    for index, _ in enumerate(files[file_name][k]):
+                        if index % 2 != 0:
+                            continue
+                        if new_segment_relative_root not in new_upload_files_path:
+                            new_upload_files_path[new_segment_relative_root] = {}    
+                        new_upload_files_path[new_segment_relative_root][files[file_name][k][index]] = files[file_name][k][index+1]
+                        self.upload_files_count += 1
+
+        self.upload_files_path = new_upload_files_path
+
     # 获取单个文件信息
-    def get_file_info(self, file_path, is_pic=False):
+    def get_file_info(self, file_path, is_pic=False, size_md5=True):
         name = os.path.basename(file_path)
-        size = self.get_file_size(file_path)
-        md5 = self.get_file_md5(file_path)
+        if size_md5:
+            size = self.get_file_size(file_path)
+            md5 = self.get_file_md5(file_path)
+        else:
+            size = None
+            md5 = None
         file_info = {
             "sequence_id": "",
             "name": name,
@@ -469,17 +522,24 @@ class upload(object):
         
         self.loged("获取云存储路径")
         for segment_relative_root in self.upload_files_path.keys():
+            new_segment_name = os.path.basename(segment_relative_root)
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
             ].keys():
                 file_relative_path = file_relative_path.replace("\\","/").replace("//","/")
+                if self.package_count is not None:
+                    alls = file_relative_path.split("/")
+                    alls[1] = new_segment_name
+                    file_relative_path_ = "/".join(alls)
+                else:
+                    file_relative_path_ = file_relative_path
                 if self.oss_config["oss_type"] == "ali_oss":
                     oss_path = (
-                        f"/{BUCKET}/{self.ds_id}/{self.batch_sn}/{file_relative_path}"
+                        f"/{BUCKET}/{self.ds_id}/{self.batch_sn}/{file_relative_path_}"
                     )
                 else:
                     bucket_name = self.oss_config["bucket"]
-                    oss_path = f"/{bucket_name}/{self.ds_id}/{self.batch_sn}/{file_relative_path}"
+                    oss_path = f"/{bucket_name}/{self.ds_id}/{self.batch_sn}/{file_relative_path_}"
                 self.upload_files_path[segment_relative_root][file_relative_path][
                     "path"
                 ] = oss_path
@@ -489,7 +549,7 @@ class upload(object):
         oss_file_path = file_info["path"]
         local_file_path = file_info["path_original"]
         self.oss_class.upload(oss_file_path, local_file_path, self.oss_config)
-        self.secure_debug(local_file_path)
+        self.secure_debug(local_file_path, oss_file_path)
 
     def upload_files(self):
         
@@ -511,7 +571,7 @@ class upload(object):
         
         record_json(self.upload_files_path, self.file_list_pre_upload_res_path)
 
-    def secure_debug(self, local_file_path):
+    def secure_debug(self, local_file_path, oss_file_path):
         flag_uploaded_files_count_change = False
         try:
             self.lock.acquire()
@@ -522,7 +582,7 @@ class upload(object):
             
             debug_path = self.get_relative_path(local_file_path)
             self.loged(
-                f"上传: {self.uploaded_files_count}/{self.upload_files_count} {debug_path}"
+                f"上传: {self.uploaded_files_count}/{self.upload_files_count} {debug_path} --> {oss_file_path}"
             )
 
         except Exception as e:
@@ -678,15 +738,7 @@ class upload(object):
                 files.append(
                     self.upload_files_path[segment_relative_root][file_relative_path]
                 )
-        data = {
-            "id": self.id,
-            "ds_id": self.ds_id,
-            "batch_sn": self.batch_sn,
-            "process_type": self.process_type,
-            "path": "",
-            "files_total_count": len(files),
-            "files": files,
-        }
+        files_total_count = len(files)
 
         headers = {
             "Content-Type": "application/json",
@@ -695,20 +747,47 @@ class upload(object):
 
         json_data = {
             "callback_url": self.callback_url,
-            "json": data,
+            "json": {
+                "id": self.id,
+                "ds_id": self.ds_id,
+                "batch_sn": self.batch_sn,
+                "process_type": self.process_type,
+                "path": "",
+                "files_total_count": files_total_count,
+                "files": files,
+            },
             "headers": headers,
             "method": "post"
         }
-        
-        
-        res, errors, success_flag = retry_fuction(self.retry_count, requests.post, self.callback_url, json=data, timeout=20, headers=headers)
-
 
         try:
             record_json(json_data, self.call_back_success_record_path)
         except Exception as record_e:
             record_error(record_e, self.error_record_path)
+        
 
-        if not success_flag:
-            record_error(errors, self.error_record_path)
-            raise Exception("expect error: 提交文件列表失败")
+        count = files_total_count // CALL_BACK_SUCCESS_COUNT
+        if files_total_count % CALL_BACK_SUCCESS_COUNT != 0:
+            count += 1
+
+        for i in range(count):
+            if i != count -1:
+                files_part = files[i*CALL_BACK_SUCCESS_COUNT:i*CALL_BACK_SUCCESS_COUNT+CALL_BACK_SUCCESS_COUNT]
+            else:
+                files_part = files[i*CALL_BACK_SUCCESS_COUNT:]
+            
+            data = {
+                "id": self.id,
+                "ds_id": self.ds_id,
+                "batch_sn": self.batch_sn,
+                "process_type": self.process_type,
+                "path": "",
+                "files_total_count": files_total_count,
+                "files": files_part,
+            }
+            
+            res, errors, success_flag = retry_fuction(self.retry_count, requests.post, self.callback_url, json=data, timeout=20, headers=headers)
+
+            if not success_flag:
+                record_error(errors, self.error_record_path)
+                raise Exception("expect error: 提交文件列表失败")

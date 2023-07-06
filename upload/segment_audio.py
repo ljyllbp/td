@@ -7,6 +7,7 @@ class segment_audio_upload(upload):
         
         try:
             self.check_data_root()
+            self.segment_split(AUDIO_FILE_TYPES)
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
         except Exception as e:
