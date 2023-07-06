@@ -2,6 +2,7 @@ import os
 import time
 import json
 import traceback
+from sys import exit
 
 def raise_error(error_str, error_record_path=None):
     error_str = str(error_str)
