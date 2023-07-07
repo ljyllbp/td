@@ -20,7 +20,15 @@ class Flag(object):
             self.is_bool = True
         else:
             self.is_bool = False
-        
+    
+    def get_type_str(self, type_):
+        type_str = str(type_)[8:-2]
+        if type_str == "str":
+            return "string"
+        else:
+            return type_str
+
+
     def get_flag_str(self):
         flag_str = BLANK_PRE
         
@@ -30,7 +38,7 @@ class Flag(object):
             flag_str += f"    "
         
         if self.type is not None:
-            flag_str += "--" + (self.name + " " + str(self.type)[8:-2]).ljust(NAME_TYPE_STR_COUNT, " ")
+            flag_str += "--" + (self.name + " " + self.get_type_str(self.type)).ljust(NAME_TYPE_STR_COUNT, " ")
         else:
             flag_str += "--" + (self.name.ljust(NAME_TYPE_STR_COUNT, " "))
 

@@ -18,7 +18,7 @@ OS_TYPES = ("mac_arm64", "mac_amd64", "win", "ubuntu")
 OS_TYPE = "mac_arm64"
 
 TD_NAME = "td"
-TD_VERSION = "0.1.0"
+TD_VERSION = "1.0.0"
 
 BUCKET = "default"
 

@@ -52,9 +52,9 @@ def mk_td():
     command_upload.add_optional("force_compressed",little_name='f', default_value=False, detail="compress pcd file, pcd file may be modified,default false")
     command_upload.add_optional("help", little_name='h', detail=f"help for upload")
     command_upload.add_optional("host", type=str, default_value=PRODUCTION_HOST, detail=f"host of the platform, default \"{PRODUCTION_HOST}\"")
-    command_upload.add_optional("package_count", type=int, little_name='p', default_value=None, detail="segment split")
+    command_upload.add_optional("package_count", type=int, little_name='p', default_value=None, detail="segment split, default none")
     command_upload.add_optional("retry_count", type=int, little_name='r', default_value=10, detail="download retry count, default 10")
-    command_upload.add_optional("simplify_pcd", little_name='s', default_value=False, detail=" streamline pcd file, default false")
+    command_upload.add_optional("simplify_pcd", little_name='s', default_value=False, detail="streamline pcd file, default false")
     command_upload.add_optional("thread_num", type=int, little_name='t', default_value=None, detail="thread number, default cpu count")
 
     td.add_command(command_upload)
