@@ -3,3 +3,6 @@ config/__pycache__/
 export/__pycache__/
 upload/__pycache__/
 utils/__pycache__/
+out/
+look.json
+test.py
