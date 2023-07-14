@@ -11,8 +11,12 @@ from config import *
 from export import *
 from utils import td_tool
 import os
+import sys
 from utils.pulic_tool import raise_error
+import signal
 
+def quit(signum, frame):
+    sys.exit()
 
 def get_upload_class(host, ds_id, ak):
     data_type = upload.get_data_type(host,ds_id, ak)
@@ -174,6 +178,10 @@ def check_export_args(args):
             args["thread_num"] = MAX_THREAD_NUM
 
 def start():
+    
+    signal.signal(signal.SIGINT, quit)
+    signal.signal(signal.SIGTERM, quit)
+
     td = mk_td()
     td.init_args()
     args = td.get_args()
@@ -210,10 +218,8 @@ def start():
         export_.set_package_id(args["package_id"])
         export_.set_task_id(args["task_id"])
         export_.set_file_name(args["file_name"])
-
         export_.set_operate_type(args["operate_type"])
         export_.set_mark_status(args["mark_status"])
-
         export_.get_items()
         export_.download_files(args["overwrite"])
 

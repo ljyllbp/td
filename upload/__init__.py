@@ -21,10 +21,11 @@ Image.MAX_IMAGE_PIXELS = None
 
 class upload(object):
     def __init__(self, ds_id, data_root):
-        self.data_root = data_root.replace("\\","/").replace("//","/")
+        self.data_root = os.path.abspath(data_root).replace("\\","/").replace("//","/")
         
         time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
         pre =  os.path.expanduser('~') + f"/.td/upload/{time_str}/" + os.path.basename(data_root)
+
         self.error_record_path = f"{pre}/error.txt"
         self.add_files_record_path = f"{pre}/add_file_record.json"
 
@@ -43,8 +44,15 @@ class upload(object):
         self.id_request_record_path = f"{pre}/id_request_record.json"
         self.id_request_res_path = f"{pre}/id_request_res.json"
 
+        self.upload_cache_root = self.get_upload_cache_root()
+        self.use_cache = True
+        if not os.path.exists(self.upload_cache_root):
+            self.use_cache = False
+        self.save_cache = True
+
         self.log_path = f"{pre}/log"
         self.log_fp = self.get_log_fp()
+
         
 
         self.debug = False
@@ -119,6 +127,11 @@ class upload(object):
         except Exception as e:
             error_str = f"expect error: 获取数据集类型失败，请检查 host:{host}，数据集id:{ds_id}，密钥:{ak}"
             raise_error(error_str)
+    
+    def get_upload_cache_root(self):
+        buffer = self.data_root.encode("utf-8")
+        data_root_md5 = hashlib.md5(buffer).hexdigest()
+        return os.path.expanduser('~') + f"/.td/upload_cache/{data_root_md5}"
 
     def assert_illegal_characters(self, path):
         for character in ILLEGAL_CHARACTER:
@@ -389,12 +402,47 @@ class upload(object):
         segment_roots.sort()
 
         return segment_roots
+    
+    def get_md5_cache_path(self, file_path):
+        return self.upload_cache_root + "/" + self.get_relative_path(file_path) + "/.md5_" + self.get_file_modify_time(file_path)
+    
+    def get_pic_cache_path(self, file_path):
+        return self.upload_cache_root + "/" + self.get_relative_path(file_path) + "/.pic_" + self.get_file_modify_time(file_path)
+    
+    def str_compare(self, a, b):
+        if str(a) == str(b):
+            return True
+        else:
+            return False
+        
+    def write_cache(self, cache, cache_path):
+        self.make_dir(cache_path)
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            f.write(str(cache))
+    
+    def read_cache(self, cache_path):
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            data = f.read()
+        return data
 
     def get_file_md5(self, file_path):
         try:
-            with open(file_path, "rb") as f:
-                buffer = f.read()
-            file_md5 = hashlib.md5(buffer).hexdigest()
+            md5_cache_path = self.get_md5_cache_path(file_path)
+            if self.use_cache:
+                if os.path.exists(md5_cache_path):
+                    file_md5 = self.read_cache(md5_cache_path)
+                else:
+                    with open(file_path, "rb") as f:
+                        buffer = f.read()
+                    file_md5 = hashlib.md5(buffer).hexdigest()
+            else:
+                with open(file_path, "rb") as f:
+                    buffer = f.read()
+                file_md5 = hashlib.md5(buffer).hexdigest()
+
+            if self.save_cache:
+                self.write_cache(file_md5, md5_cache_path)
+
             return file_md5
         except Exception as e:
             error_path = self.get_relative_path(file_path)
@@ -414,15 +462,39 @@ class upload(object):
 
     def get_pic_size(self, pic_file_path):
         try:
-            img = Image.open(pic_file_path)
-            w = img.width
-            h = img.height
-            img.close()
-            return str(w) + "*" + str(h)
+            pic_cache_path = self.get_pic_cache_path(pic_file_path)
+            if self.use_cache:
+                if os.path.exists(pic_cache_path):
+                    pic_size = self.read_cache(pic_cache_path)
+                else:
+                    img = Image.open(pic_file_path)
+                    w = img.width
+                    h = img.height
+                    img.close()
+                    pic_size = str(w) + "*" + str(h)
+            else:
+                img = Image.open(pic_file_path)
+                w = img.width
+                h = img.height
+                img.close()
+                pic_size = str(w) + "*" + str(h)
+            
+            if self.save_cache:
+                self.write_cache(pic_size, pic_cache_path)
+            return pic_size
+        
         except Exception as e:
             error_path = self.get_relative_path(pic_file_path)
             raise Exception(f"expect error: {error_path} 获取图像尺寸失败")
     
+    def get_file_modify_time(self, filePath):
+        try:
+            t = os.path.getmtime(filePath)
+            return str(t)
+        except Exception as e:
+            error_path = self.get_relative_path(filePath)
+            raise Exception(f"expect error: {error_path} 获取文件修改时间失败")
+
     def make_dir(self, file_path):
         file_root = os.path.dirname(file_path)
         if not os.path.exists(file_root):
