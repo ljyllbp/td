@@ -253,7 +253,7 @@ class pointcloud_upload(upload):
                     is_error = True
                     error_str = field_info["error_str"]
                     return is_error, error_str
-            elif field_name == "affine_parameters":
+            elif field_name == "affine_params":
                 try:
                     assert(isinstance(sensor_param[field_name]["ac"], (float, int)))
                     assert(isinstance(sensor_param[field_name]["ad"], (float, int)))
@@ -264,7 +264,7 @@ class pointcloud_upload(upload):
                     is_error = True
                     error_str = field_info["error_str"]
                     return is_error, error_str
-            elif field_name == "inv_poly_parameters":
+            elif field_name == "inv_poly_params":
                 try:
                     assert(isinstance(sensor_param[field_name], list))
                     assert((len(sensor_param[field_name]) == 10 or len(sensor_param[field_name]) == 20))

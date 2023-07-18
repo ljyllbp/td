@@ -308,13 +308,13 @@ SENSOR_PARAMS_STRUCT = {
             }
         },
         "necessary":{
-            "affine_parameters":{
+            "affine_params":{
                 "type": "",
-                "error_str": "affine_parameters 参数检查出错"
+                "error_str": "affine_params 参数检查出错"
             },
-            "inv_poly_parameters":{
+            "inv_poly_params":{
                 "type": "20 位的 float list",
-                "error_str": "inv_poly_parameters 参数检查出错"
+                "error_str": "inv_poly_params 参数检查出错"
             },
             "extrinsic":{
                 "type": "4*4 list float or int",
