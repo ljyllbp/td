@@ -70,7 +70,7 @@ class pointcloud_upload(upload):
             for file_name in sorted(files.keys()):
                 file_index += 1
                 new_segment_name = segment_name + PACKAGE_SPECIAL_STRING + str(file_index // self.package_count).rjust(5,"0")
-                new_segment_relative_root = os.path.join(os.path.dirname(segment_relative_root), new_segment_name)
+                new_segment_relative_root = self.path_join(os.path.dirname(segment_relative_root), new_segment_name)
 
                 if new_segment_relative_root not in new_upload_files_path:
                     new_upload_files_path[new_segment_relative_root] = {}
@@ -233,37 +233,59 @@ class pointcloud_upload(upload):
                 is_error = True
                 error_str = f"缺少字段{field_name}"
                 return is_error, error_str
-            else:
-                if field_name != "extrinsic":
-                    if not isinstance(sensor_param[field_name], field_info["type"]):
-                        is_error = True
-                        error_str = field_info["error_str"]
-                        return is_error, error_str
-                else:
-                    extrinsic_error_flag = False
-                    try:
-                        if len(sensor_param[field_name]) != 4:
+            
+            if field_name == "extrinsic":
+                extrinsic_error_flag = False
+                try:
+                    if len(sensor_param[field_name]) != 4:
+                        extrinsic_error_flag =True
+                    for row in range(4):
+                        if len(sensor_param[field_name][row]) != 4:
                             extrinsic_error_flag =True
-                        for row in range(4):
-                            if len(sensor_param[field_name][row]) != 4:
+                        for col in range(4):
+                            if not isinstance(sensor_param[field_name][row][col],(float, int)):
                                 extrinsic_error_flag =True
-                            for col in range(4):
-                                if not isinstance(sensor_param[field_name][row][col],(float, int)):
-                                    extrinsic_error_flag =True
-                    except :
-                        is_error = True
-                        error_str = field_info["error_str"]
-                        return is_error, error_str
-                    if extrinsic_error_flag == True:
-                        is_error = True
-                        error_str = field_info["error_str"]
-                        return is_error, error_str
+                except :
+                    is_error = True
+                    error_str = field_info["error_str"]
+                    return is_error, error_str
+                if extrinsic_error_flag == True:
+                    is_error = True
+                    error_str = field_info["error_str"]
+                    return is_error, error_str
+            elif field_name == "affine_parameters":
+                try:
+                    assert(isinstance(sensor_param[field_name]["ac"], (float, int)))
+                    assert(isinstance(sensor_param[field_name]["ad"], (float, int)))
+                    assert(isinstance(sensor_param[field_name]["ae"], (float, int)))
+                    assert(isinstance(sensor_param[field_name]["cx"], (float, int)))
+                    assert(isinstance(sensor_param[field_name]["cy"], (float, int)))
+                except :
+                    is_error = True
+                    error_str = field_info["error_str"]
+                    return is_error, error_str
+            elif field_name == "inv_poly_parameters":
+                try:
+                    assert(isinstance(sensor_param[field_name], list))
+                    assert((len(sensor_param[field_name]) == 10 or len(sensor_param[field_name]) == 20))
+                    for num in sensor_param[field_name]:
+                        assert(isinstance(num, (int, float)))
+                except :
+                    is_error = True
+                    error_str = field_info["error_str"]
+                    return is_error, error_str
+            else:
+                if not isinstance(sensor_param[field_name], field_info["type"]):
+                    is_error = True
+                    error_str = field_info["error_str"]
+                    return is_error, error_str
+            
         return is_error, error_str
 
     # 校验lidar目录
     def check_lidar_root(self, segment_root):
 
-        lidar_root = os.path.join(segment_root, "lidar")
+        lidar_root = self.path_join(segment_root, "lidar")
         
         if not os.path.exists(lidar_root):
             error_path = self.get_relative_path(lidar_root)
@@ -289,7 +311,7 @@ class pointcloud_upload(upload):
         
         camera_image_dict = {}
 
-        camera_root = os.path.join(segment_root, "camera")
+        camera_root = self.path_join(segment_root, "camera")
         
         if not os.path.exists(camera_root):
             return camera_image_dict
@@ -301,7 +323,7 @@ class pointcloud_upload(upload):
             if self.ignore(camera_name):
                 continue
 
-            image_root = os.path.join(camera_root, camera_name)
+            image_root = self.path_join(camera_root, camera_name)
             file_types = IMAGE_FILE_TYPES
             error_str = "不支持该类型图片文件"
             image_files_info = self.check_file_root(image_root, file_types, error_str)
@@ -313,7 +335,7 @@ class pointcloud_upload(upload):
     # 校验pre_label目录
     def check_pre_label_root(self, segment_root):
 
-        pre_label_root = os.path.join(segment_root, "pre_label")
+        pre_label_root = self.path_join(segment_root, "pre_label")
         
         if not os.path.exists(pre_label_root):
             return None
@@ -358,7 +380,7 @@ class pointcloud_upload(upload):
             
     # 校验以及修正config文件
     def check_config_flie(self, segment_root, pcd_files_info, camare_images_dict):
-        config_path = os.path.join(segment_root,"config.json")
+        config_path = self.path_join(segment_root,"config.json")
         
         # 不存在config文件
         if not os.path.exists(config_path):
@@ -525,7 +547,7 @@ class pointcloud_upload(upload):
         self.upload_files_path[segment_relative_root] = {}
         
         # 添加config文件
-        config_path = os.path.join(segment_root, "config.json")
+        config_path = self.path_join(segment_root, "config.json")
         config_relative_path = self.get_relative_path(config_path)
         self.upload_files_path[segment_relative_root][config_relative_path] = self.get_file_info(config_path)
         self.upload_files_count += 1

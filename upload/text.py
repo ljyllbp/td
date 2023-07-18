@@ -38,7 +38,6 @@ class text_upload(upload):
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
             ].keys():
-                file_relative_path = file_relative_path.replace("\\","/").replace("//","/")
                 if self.oss_config["oss_type"] == "ali_oss":
                     oss_path = (
                         f"/{BUCKET}/{self.ds_id}/{self.batch_sn}/{file_relative_path}"
@@ -53,7 +52,7 @@ class text_upload(upload):
     # 校验text目录
     def check_text_root(self, segment_root):
 
-        text_root = os.path.join(segment_root, "text")
+        text_root = self.path_join(segment_root, "text")
         
         if not os.path.exists(text_root):
             error_path = self.get_relative_path(text_root)
@@ -69,7 +68,7 @@ class text_upload(upload):
             if self.ignore(file):
                 continue
         
-            file_path = os.path.join(text_root, file)
+            file_path = self.path_join(text_root, file)
 
             self.is_file(file_path)
 
@@ -117,7 +116,7 @@ class text_upload(upload):
                             if not isinstance(pic_name,str):
                                 raise Exception(f"expect error: {error_path}, 第{data_index}条数据img中应为字典")
                             else:
-                                pic_path = os.path.join(segment_root, "img", text_name, pic_name)
+                                pic_path = self.path_join(segment_root, "img", text_name, pic_name)
                                 if not os.path.exists(pic_path):
                                     pic_error_path = self.get_relative_path(pic_path)
                                     raise Exception(f"expect error: {error_path}, 第 {data_index} 条数据img第 {pic_index} 张图像 {pic_error_path} 缺少")
@@ -156,7 +155,7 @@ class text_upload(upload):
     def struct_text_root(self, segment_root):
         segment_relative_root = self.get_relative_path(segment_root)
         self.upload_files_path[segment_relative_root] = {}
-        text_root = os.path.join(segment_root, "text")
+        text_root = self.path_join(segment_root, "text")
         files_ = os.listdir(text_root)
 
         for file in files_:
@@ -164,7 +163,7 @@ class text_upload(upload):
             if self.ignore(file):
                 continue
     
-            file_path = os.path.join(text_root, file)
+            file_path = self.path_join(text_root, file)
             file_name = self.get_file_name(file_path)
 
             with open(file_path, "r", encoding="utf-8") as f:
@@ -179,21 +178,21 @@ class text_upload(upload):
                     text_content["img"] = value["img"]
                     # 将img添加到列表
                     for img_file in value["img"]:
-                        source_img_file_path = os.path.join(segment_root, "img", file_name, img_file)
-                        tar_img_file_path = os.path.join(segment_root,file_name,"img",str(data_index).rjust(5, "0"),img_file)
+                        source_img_file_path = self.path_join(segment_root, "img", file_name, img_file)
+                        tar_img_file_path = self.path_join(segment_root,file_name,"img",str(data_index).rjust(5, "0"),img_file)
                         tar_img_file_relative_path = self.get_relative_path(tar_img_file_path)
                         self.upload_files_path[segment_relative_root][tar_img_file_relative_path] = self.get_file_info(source_img_file_path, True)
                         self.upload_files_path[segment_relative_root][tar_img_file_relative_path]["path_original"] = source_img_file_path
                         self.upload_files_count += 1
 
-                text_content_save_path = os.path.join(segment_root,"text","." + file_name,".text","." + str(data_index).rjust(5, "0") + ".json")
-                self.add_files_path.append(os.path.join(segment_root,"text","." + file_name))
+                text_content_save_path = self.path_join(segment_root,"text","." + file_name,".text","." + str(data_index).rjust(5, "0") + ".json")
+                self.add_files_path.append(self.path_join(segment_root,"text","." + file_name))
                 self.make_dir(text_content_save_path)
                 with open(text_content_save_path, "w", encoding="utf-8") as f:
                     json.dump(text_content, f, ensure_ascii=False, indent=4)
                 
                 # 将text添加到列表
-                text_content_save_path_ = os.path.join(segment_root,file_name,"text",str(data_index).rjust(5, "0") + ".json")
+                text_content_save_path_ = self.path_join(segment_root,file_name,"text",str(data_index).rjust(5, "0") + ".json")
                 text_content_save_relative_path_ = self.get_relative_path(text_content_save_path_)
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_] = self.get_file_info(text_content_save_path)
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["name"] = self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["name"][1:]
@@ -203,13 +202,13 @@ class text_upload(upload):
                 # 预标注结果
                 if "pre_label" not in value:
                     continue
-                pre_label_content_save_path = os.path.join(segment_root,"text","." + file_name,".pre_label","."+str(data_index).rjust(5, "0") + ".json")
+                pre_label_content_save_path = self.path_join(segment_root,"text","." + file_name,".pre_label","."+str(data_index).rjust(5, "0") + ".json")
                 self.make_dir(pre_label_content_save_path)
                 with open(pre_label_content_save_path, "w", encoding="utf-8") as f:
                     json.dump(value["pre_label"], f, ensure_ascii=False, indent=4)
                 
                 # 将pre_label添加到列表
-                pre_label_content_save_path_ = os.path.join(segment_root,file_name,"pre_label",str(data_index).rjust(5, "0") + ".json")
+                pre_label_content_save_path_ = self.path_join(segment_root,file_name,"pre_label",str(data_index).rjust(5, "0") + ".json")
                 pre_label_content_save_relative_path_ = self.get_relative_path(pre_label_content_save_path_)
                 self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_] = self.get_file_info(pre_label_content_save_path)
                 self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_]["name"] = self.upload_files_path[segment_relative_root][pre_label_content_save_relative_path_]["name"][1:]

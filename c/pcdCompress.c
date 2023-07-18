@@ -36,9 +36,6 @@
 typedef unsigned int LZF_HSLOT;
 typedef LZF_HSLOT LZF_STATE[1 << (HLOG)];
 
-
-
-
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int uint32;

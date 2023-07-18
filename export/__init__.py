@@ -7,7 +7,9 @@ import threading
 import time
 from utils import executor
 from utils.pulic_tool import raise_error, record_error
+from pathlib import Path
 from config import PACKAGE_SPECIAL_STRING
+
 
 class Exporter(object):
     def __init__(self,out,task_batch_key,ak,host="http://label-std.testin.cn",download_type="label",have_more_info=False,debug=True):
@@ -20,7 +22,7 @@ class Exporter(object):
         # |file_name|query|string|否|文件名称，暂时支持左匹配模糊查询|
         # download_type str label(标注结果)/original(原始文件)/original_and_label(标注结果加原始文件)
 
-        self.out = out.replace("\\","/").replace("//","/") # 保存路径
+        self.out = self.as_posix(Path(out).absolute()) # 保存路径
 
         time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
         pre = os.path.expanduser('~') + f"/.td/export/{time_str}/" + os.path.basename(out)
@@ -127,6 +129,12 @@ class Exporter(object):
             self.log_fp.write(str(str_) + end)
         if self.debug:
             print(str_, end=end)
+
+    def as_posix(self, file_path):
+        return Path(file_path).as_posix()
+
+    def path_join(self, *args):
+        return self.as_posix(os.path.join(*args))
     
     def make_dir(self, file_path):
         file_root = os.path.dirname(file_path)
@@ -556,7 +564,7 @@ class Exporter(object):
             for file in filesl:
                 if file.endswith('.json'):
                     name = int(file.split('.')[0])
-                    json_path = os.path.join(root, file)
+                    json_path = self.path_join(root, file)
                     data_type = os.path.basename(root)
                     base_dir_name = os.path.dirname(root)
                     if base_dir_name not in data:
@@ -568,7 +576,7 @@ class Exporter(object):
                     data[base_dir_name][data_type][name] = json_path
                 else:
                     name = os.path.basename(root)
-                    file_path = os.path.join(root, file)
+                    file_path = self.path_join(root, file)
                     data_type = os.path.basename(os.path.dirname(root))
                     base_dir_name = os.path.dirname(os.path.dirname(root))
                     if base_dir_name not in data:
@@ -583,9 +591,9 @@ class Exporter(object):
                 root = os.path.dirname(key)
                 name = os.path.basename(key)
                 if k == "label":
-                    out = os.path.join(root, 'label')
+                    out = self.path_join(root, 'label')
                 else:
-                    out = os.path.join(root, k)
+                    out = self.path_join(root, k)
                 if not os.path.exists(out):
                     os.makedirs(out)
                 if k == 'text' or k == "label":
@@ -602,16 +610,16 @@ class Exporter(object):
                             else:
                                 label_data.append(json_info)
                     if k == 'text':
-                        with open(os.path.join(out, name + '.json'), 'w', encoding="utf-8") as f:
+                        with open(self.path_join(out, name + '.json'), 'w', encoding="utf-8") as f:
                             f.write(json.dumps(text_data, ensure_ascii=False))
                             f.close()
                     else:
-                        with open(os.path.join(out, name + '.json'), 'w', encoding="utf-8") as f:
+                        with open(self.path_join(out, name + '.json'), 'w', encoding="utf-8") as f:
                             f.write(json.dumps(label_data, ensure_ascii=False))
                             f.close()
                 else:
                     file_name = os.path.basename(key)
-                    out = os.path.join(out, file_name)
+                    out = self.path_join(out, file_name)
                     if not os.path.exists(out):
                         os.makedirs(out)
                     for file in v:

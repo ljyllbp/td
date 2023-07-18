@@ -8,9 +8,9 @@ import threading
 import uuid
 import json
 import shutil
-import pathlib
 from utils.pulic_tool import raise_error, retry_fuction, record_error, record_json
 import time
+from pathlib import Path
 
 from config import *
 from utils import oss, executor
@@ -21,7 +21,7 @@ Image.MAX_IMAGE_PIXELS = None
 
 class upload(object):
     def __init__(self, ds_id, data_root):
-        self.data_root = os.path.abspath(data_root).replace("\\","/").replace("//","/")
+        self.data_root = self.as_posix(Path(data_root).absolute())
         
         time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
         pre =  os.path.expanduser('~') + f"/.td/upload/{time_str}/" + os.path.basename(data_root)
@@ -108,6 +108,14 @@ class upload(object):
         self.is_simplify_pcd = is_simplify_pcd
         self.is_force_Compressed = is_force_Compressed
     
+    def set_batch_sn(self, batch_sn):
+        self.batch_sn = batch_sn
+    
+    def set_use_cache(self, no_cache):
+        self.use_cache = not no_cache
+        if not os.path.exists(self.upload_cache_root):
+            self.use_cache = False
+    
     def save_add_files(self):
         add_files_record_root = os.path.dirname(self.add_files_record_path)
         if not os.path.exists(add_files_record_root):
@@ -115,6 +123,12 @@ class upload(object):
         with open(self.add_files_record_path, "w", encoding="utf-8") as f:
             json.dump(self.add_files_path, f, ensure_ascii=False, indent=4)
     
+    def as_posix(self, file_path):
+        return Path(file_path).as_posix()
+
+    def path_join(self, *args):
+        return self.as_posix(os.path.join(*args))
+
     @staticmethod
     def get_data_type(host, ds_id, ak):
         try:
@@ -207,6 +221,10 @@ class upload(object):
     def get_batch_sn(self):
         
         self.loged("获取批次号")
+
+        if self.batch_sn is not None:
+            return
+        
         url_batch_sn = f"{self.host}/v2/datasets/{self.ds_id}/batches"
         headers = {"Access-Key": self.ak}
         params = {"dataset_id": self.ds_id}
@@ -320,7 +338,7 @@ class upload(object):
             if self.ignore(file):
                 continue
         
-            file_path = os.path.join(file_root, file)
+            file_path = self.path_join(file_root, file)
 
             self.is_file(file_path)
 
@@ -346,7 +364,7 @@ class upload(object):
         return files_info
 
     def get_relative_path(self, path):
-        return path[len(os.path.dirname(self.data_root)) + 1 :].replace("\\","/").replace("//","/")
+        return path[len(os.path.dirname(self.data_root)) + 1 :]
 
     def get_file_type(self, file_path):
         try:
@@ -388,7 +406,7 @@ class upload(object):
             if self.ignore(segment_name):
                 continue
 
-            segment_root = os.path.join(self.data_root, segment_name)
+            segment_root = self.path_join(self.data_root, segment_name)
 
             if os.path.isfile(segment_root):
                 error_path = self.get_relative_path(segment_root)
@@ -417,28 +435,36 @@ class upload(object):
         
     def write_cache(self, cache, cache_path):
         self.make_dir(cache_path)
-        with open(cache_path, 'w', encoding='utf-8') as f:
-            f.write(str(cache))
+        with open(cache_path, 'wb') as f:
+            f.write(cache.encode('utf-8'))
+            f.write(bytes([0,0,0,0]))
     
     def read_cache(self, cache_path):
-        with open(cache_path, 'r', encoding='utf-8') as f:
-            data = f.read()
-        return data
+        with open(cache_path, 'rb') as f:
+            buf = f.read()
+        if not (len(buf) > 4 and buf[-1]==0 and buf[-2]==0 and buf[-3]==0 and buf[-4]==0):
+            return None, False
+        else:
+            return buf[:-4].decode("utf-8"), True
+    
+    def get_file_md5_(self, file_path):
+        with open(file_path, "rb") as f:
+            buffer = f.read()
+        file_md5 = hashlib.md5(buffer).hexdigest()
+        return file_md5
 
     def get_file_md5(self, file_path):
         try:
             md5_cache_path = self.get_md5_cache_path(file_path)
             if self.use_cache:
                 if os.path.exists(md5_cache_path):
-                    file_md5 = self.read_cache(md5_cache_path)
+                    file_md5, flag = self.read_cache(md5_cache_path)
+                    if not flag:
+                        file_md5 = self.get_file_md5_(file_path)
                 else:
-                    with open(file_path, "rb") as f:
-                        buffer = f.read()
-                    file_md5 = hashlib.md5(buffer).hexdigest()
+                    file_md5 = self.get_file_md5_(file_path)
             else:
-                with open(file_path, "rb") as f:
-                    buffer = f.read()
-                file_md5 = hashlib.md5(buffer).hexdigest()
+                file_md5 = self.get_file_md5_(file_path)
 
             if self.save_cache:
                 self.write_cache(file_md5, md5_cache_path)
@@ -460,24 +486,26 @@ class upload(object):
             error_path = self.get_relative_path(file_path)
             raise Exception(f"expect error: {error_path} 获取文件大小失败")
 
+    def get_pic_size_(self, pic_file_path):
+        img = Image.open(pic_file_path)
+        w = img.width
+        h = img.height
+        img.close()
+        pic_size = str(w) + "*" + str(h)
+        return pic_size
+
     def get_pic_size(self, pic_file_path):
         try:
             pic_cache_path = self.get_pic_cache_path(pic_file_path)
             if self.use_cache:
                 if os.path.exists(pic_cache_path):
-                    pic_size = self.read_cache(pic_cache_path)
+                    pic_size, flag = self.read_cache(pic_cache_path)
+                    if not flag:
+                        pic_size = self.get_pic_size_(pic_file_path)
                 else:
-                    img = Image.open(pic_file_path)
-                    w = img.width
-                    h = img.height
-                    img.close()
-                    pic_size = str(w) + "*" + str(h)
+                    pic_size = self.get_pic_size_(pic_file_path)
             else:
-                img = Image.open(pic_file_path)
-                w = img.width
-                h = img.height
-                img.close()
-                pic_size = str(w) + "*" + str(h)
+                pic_size = self.get_pic_size_(pic_file_path)
             
             if self.save_cache:
                 self.write_cache(pic_size, pic_cache_path)
@@ -532,7 +560,7 @@ class upload(object):
             for file_name in sorted(files.keys()):
                 file_index += 1
                 new_segment_name = segment_name + PACKAGE_SPECIAL_STRING + str(file_index // self.package_count).rjust(5,"0")
-                new_segment_relative_root = os.path.join(os.path.dirname(segment_relative_root), new_segment_name)
+                new_segment_relative_root = self.path_join(os.path.dirname(segment_relative_root), new_segment_name)
 
                 for k, v in files[file_name].items():
                     for index, _ in enumerate(files[file_name][k]):
@@ -598,7 +626,6 @@ class upload(object):
             for file_relative_path in self.upload_files_path[
                 segment_relative_root
             ].keys():
-                file_relative_path = file_relative_path.replace("\\","/").replace("//","/")
                 if self.package_count is not None:
                     alls = file_relative_path.split("/")
                     alls[1] = new_segment_name
@@ -615,12 +642,25 @@ class upload(object):
                 self.upload_files_path[segment_relative_root][file_relative_path][
                     "path"
                 ] = oss_path
+    
+    def get_upload_cache_path(self, local_file_path, oss_file_path):
+        return self.upload_cache_root + "/" + self.get_relative_path(local_file_path) + "/.upload_" + hashlib.md5((self.get_file_modify_time(local_file_path) + oss_file_path).encode("utf-8")).hexdigest()
 
     def upload_file(self, segment_relative_root, file_relative_path):
         file_info = self.upload_files_path[segment_relative_root][file_relative_path]
         oss_file_path = file_info["path"]
         local_file_path = file_info["path_original"]
-        self.oss_class.upload(oss_file_path, local_file_path, self.oss_config)
+
+        upload_cache_path = self.get_upload_cache_path(local_file_path, oss_file_path)
+        if self.use_cache:
+            if not os.path.exists(upload_cache_path):
+                self.oss_class.upload(oss_file_path, local_file_path, self.oss_config)
+        else:
+            self.oss_class.upload(oss_file_path, local_file_path, self.oss_config)
+        
+        if self.save_cache:
+            self.write_cache("1", upload_cache_path)
+
         self.secure_debug(local_file_path, oss_file_path)
 
     def upload_files(self):
@@ -770,6 +810,7 @@ class upload(object):
                 self.upload_files_path[segment_relative_root][file_relative_path]["path_original"] = self.upload_files_path[segment_relative_root][file_relative_path]["path"]
 
     def call_back_fail(self, e):
+        return
         self.error_callback_url = f"{self.host}/v2/datasets/{self.ds_id}/upload-errors"
         headers = {
             "Content-Type": "application/json",

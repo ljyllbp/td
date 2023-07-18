@@ -53,9 +53,11 @@ def mk_td():
     command_upload.add_mandatory("ds_id", type=str)
     command_upload.add_mandatory("data_root", type=str)
 
+    command_upload.add_optional("batch_sn",type=str, little_name='b', default_value=None, detail="batch number")
     command_upload.add_optional("force_compressed",little_name='f', default_value=False, detail="compress pcd file, pcd file may be modified,default false")
     command_upload.add_optional("help", little_name='h', detail=f"help for upload")
     command_upload.add_optional("host", type=str, default_value=PRODUCTION_HOST, detail=f"host of the platform, default \"{PRODUCTION_HOST}\"")
+    command_upload.add_optional("no_cache", default_value=False, detail=f"not use cache")
     command_upload.add_optional("package_count", type=int, little_name='p', default_value=None, detail="segment split, default none")
     command_upload.add_optional("retry_count", type=int, little_name='r', default_value=10, detail="download retry count, default 10")
     command_upload.add_optional("simplify_pcd", little_name='s', default_value=False, detail="streamline pcd file, default false")
@@ -193,6 +195,8 @@ def start():
         upload_.set_debug(True)
         upload_.set_retry_count(args["retry_count"])
         upload_.set_host_and_ak(args["host"], args["ak"])
+        upload_.set_batch_sn(args["batch_sn"])
+        upload_.set_use_cache(args["no_cache"])
         if args["thread_num"] is not None:
             upload_.set_executor(args["thread_num"])
         upload_.set_pcd_option(args["simplify_pcd"], args["force_compressed"])

@@ -295,5 +295,31 @@ SENSOR_PARAMS_STRUCT = {
                 "error_str": "extrinsic数据类型应为4*4的浮点型或整型的列表"
             }
         }
+    },
+    "scaramuzza":{
+        "optional":{
+            "fov":{
+                "type": (float, int),
+                "error_str": "fov数据类型应为整型或浮点型"
+            },
+            "camera_euler_z":{
+                "type": (float, int),
+                "error_str": "camera_euler_z数据类型应为整型或浮点型"
+            }
+        },
+        "necessary":{
+            "affine_parameters":{
+                "type": "",
+                "error_str": "affine_parameters 参数检查出错"
+            },
+            "inv_poly_parameters":{
+                "type": "20 位的 float list",
+                "error_str": "inv_poly_parameters 参数检查出错"
+            },
+            "extrinsic":{
+                "type": "4*4 list float or int",
+                "error_str": "extrinsic数据类型应为4*4的浮点型或整型的列表"
+            }
+        }
     }
 }

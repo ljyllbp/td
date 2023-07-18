@@ -29,7 +29,7 @@ class video_upload(upload):
     # 校验video目录
     def check_video_root(self, segment_root):
 
-        video_root = os.path.join(segment_root, "source")
+        video_root = self.path_join(segment_root, "source")
         
         video_files_info = {}
 
@@ -59,7 +59,7 @@ class video_upload(upload):
     # 校验pre_label目录
     def check_pre_label_root(self, segment_root):
 
-        pre_label_root = os.path.join(segment_root, "pre_label")
+        pre_label_root = self.path_join(segment_root, "pre_label")
         
         if not os.path.exists(pre_label_root):
             return None
@@ -132,9 +132,9 @@ class video_upload(upload):
             files = os.listdir(segment_root)
             for file in files:
                 if file.endswith(VIDEO_FILE_TYPES) and not file.startswith("."):
-                    file_path = os.path.join(segment_root, file)
+                    file_path = self.path_join(segment_root, file)
                     if os.path.isfile(file_path):
-                        file_tar_path = os.path.join(segment_root, "source", file)
+                        file_tar_path = self.path_join(segment_root, "source", file)
                         if os.path.exists(file_tar_path):
                             error_path = self.get_relative_path(file_path)
                             error_path_ = self.get_relative_path(file_tar_path)
