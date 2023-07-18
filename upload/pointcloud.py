@@ -30,10 +30,11 @@ class pointcloud_upload(upload):
             raise_error(e, self.error_record_path)
     
     def segment_split(self):
-        if self.debug:
-            print("分包")
+        
         if self.package_count is None:
             return
+        if self.debug:
+            print("分包")
         
         self.upload_files_count = 0
 

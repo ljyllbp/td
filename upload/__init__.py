@@ -529,10 +529,11 @@ class upload(object):
             os.makedirs(file_root)
 
     def segment_split(self, file_types):
-        if self.debug:
-            print("分包")
+        
         if self.package_count is None:
             return
+        if self.debug:
+            print("分包")
         
         self.upload_files_count = 0
 
