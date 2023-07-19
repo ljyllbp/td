@@ -6,3 +6,6 @@ utils/__pycache__/
 out/
 look.json
 test.py
+main.spec
+dist/
+build/
