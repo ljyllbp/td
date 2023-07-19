@@ -5,23 +5,27 @@ td命令行工具为方便针对标注平台数据上传、下载的本地命令
 支持Mac（Arm构架和Intel构架）、Linux、Windows系统。
 
 ## 下载地址
+
 下载成功解压后将解压得到的目录路径加入到本地的环境变量中（如windows下将'your/path/td_win'加入环境变量即可），可在命令行终端中直接使用td命令。
+
 [windows添加环境变量参考](https://blog.csdn.net/weixin_44099083/article/details/121177094)
+<br>
 [mac添加环境变量参考](https://www.jianshu.com/p/8e51bc9cebfa)
+<br>
 [linux添加环境变量参考](https://blog.csdn.net/yi412/article/details/11523525)
 
 当前版本：1.0.0
 
-[Linux版本](http://src1-yscdn.testin.cn/data/td/1.0.0/td_linux.zip)  
-[Mac-Arm版本](http://src1-yscdn.testin.cn/data/td/1.0.0/td_mac_arm.zip)  
+[Linux版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_linux.zip)  
+[Mac-Arm版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_mac_arm.zip)  
 [Mac-Intel版本](http://src1-yscdn.testin.cn/data/td/1.0.0/td_mac_amd.zip)  
-[Windows版本](http://src1-yscdn.testin.cn/data/td/1.0.0/td_win.zip)
+[Windows版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_win.zip)
 
 ## 命令介绍
 
 ### upload
 
-td upload <ak> <ds_id> <data_root> [flags]
+td upload <ak\> <ds_id\> <data_root\> [flags]
 
 **功能**
 
@@ -44,9 +48,11 @@ td upload <ak> <ds_id> <data_root> [flags]
 
 |字段名|简写|默认值|类型|说明|
 |:-:|:-:|:-:|:-:|:-:|
+|batch_sn|b|none|string|批次号|
 |force_compressed|f|false|bool|是否强制压缩点云|
 |help|h|||说明|
 |host||http://label-std.testin.cn|string|平台的host|
+|no_cache||false|bool|不使用本地缓存|
 |package_count|p|none|int|分包数量，默认不分包|
 |retry_count|r|10|int|每个文件上传失败后重传次数|
 |simplify_pcd|s|false|bool|是否精简点云|
@@ -55,12 +61,13 @@ td upload <ak> <ds_id> <data_root> [flags]
 **示例**
 ```
 td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点云
-td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点云 -s -f --host http://label-std.testin.cn -r 10 -t 10 -p 40
-td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点云 --simplify_pcd --force_compressed --host http://label-std.testin.cn --retry_count 10 --thread_num 10 -package_count 40
+td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点云 -s -f --host http://label-std.testin.cn -r 10 -t 10 -p 40 -b 2305061985 --no_cache
+td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点云 --simplify_pcd --force_compressed --host http://label-std.testin.cn --retry_count 10 --thread_num 10 -package_count 40 --batch_sn 2305061985 --no_cache
 ```
 
 ### export
-td export <ak> <task_batch_key> <out> [flags]
+
+td export <ak\> <task_batch_key\> <out\> [flags]
 
 **功能**
 
@@ -97,6 +104,7 @@ td export <ak> <task_batch_key> <out> [flags]
 |work_type|w|1|int|工序|
 
 **工序id对应表**
+
 |id|状态|
 |:-:|:-:|
 |1|标注|
@@ -105,6 +113,7 @@ td export <ak> <task_batch_key> <out> [flags]
 |4|验收|
 
 **题状态id对应表**
+
 |id|状态|
 |:-:|:-:|
 |0|待处理|
