@@ -136,7 +136,7 @@ td export 95c6f35e29bbd0621d2a0ef2c8846adee86c 230619ad96c /out --download_type 
 因为Apple无法检查其是否包含恶意软件
 系统偏好->安全性与隐私->通用->勾选'任何来源'
 若无'任何来源'选项
-终端输入 sudo spctl --master-enable
+终端输入 sudo spctl --master-disable
 输入密码
 系统偏好->安全性与隐私->通用->勾选'任何来源'
 ```
