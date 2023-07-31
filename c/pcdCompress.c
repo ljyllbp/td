@@ -52,6 +52,7 @@ typedef double float64;
 typedef int bool;
 #define true 1
 #define false 0
+#define PCD_S_ROOT "/.TD_PCD_FILES/"
 
 #define ascii 0
 #define binary 1
@@ -1622,9 +1623,37 @@ void writePcdData(struct PcdInfo *pcdinfo, FILE *fp){
     
 }
 
-void pcdFileChange(char * pcdPath, bool forceCompressed){
+int myMkdir(char *dir){
+    
+    if (access(dir, 0) == 0){
+        return 0;
+    }
+
+    char *pDir;
+    char tempDir[10000];
+    memset(tempDir, 0, 10000);
+    strcpy(tempDir, dir);
+
+    pDir = dirname(tempDir);
+
+    if (access(pDir, 0) !=0){
+        if(myMkdir(pDir) < 0){
+            return -1;
+        }
+    }
+
+    if(mkdir(tempDir, 0777) < 0){
+        return -1;
+    }
+    
+    return 0;
+}
+
+void pcdFileChange(char * pcdPath, bool forceCompressed, char *distPcdPath){
     struct PcdInfo pcdinfo;
+    char * distPcdRoot;
     FILE *fp;
+    int asdf;
     fp = fopen(pcdPath, "rb");
     readPcdHead(&pcdinfo, fp, forceCompressed);
     checkPcdInfo(&pcdinfo);
@@ -1640,8 +1669,12 @@ void pcdFileChange(char * pcdPath, bool forceCompressed){
         allocateMemoryPcdInfo(&pcdinfo);
         readPcdData(&pcdinfo, fp);
         fclose(fp);
+        
+        distPcdRoot = dirname(distPcdPath);
 
-        fp = fopen(pcdPath, "wb");
+        myMkdir(distPcdRoot);
+        
+        fp = fopen(distPcdPath, "wb");
 
         writePcdHead(&pcdinfo, fp);
         writePcdData(&pcdinfo, fp);
@@ -1765,6 +1798,7 @@ void start(char *startDir, char *resSaveFile, bool forceCompressed, bool debug){
     char *name;
     int pcdfileCount = 0;
     char pcdfile[1000];
+    char distPcdPath[1000];
     
 
     file.name = NULL;
@@ -1798,8 +1832,11 @@ void start(char *startDir, char *resSaveFile, bool forceCompressed, bool debug){
             if (debug){
                 printf("精简点云: %d/%d %s/%s\n", nowPcdfileCount, pcdfileCount, dataName, pcdfile);
             }
-            pcdFileChange(nowFile->name, forceCompressed);
-            
+            memset(distPcdPath, '\0', 1000);
+            strcpy(distPcdPath, startDir);
+            strcat(distPcdPath, PCD_S_ROOT);
+            strcat(distPcdPath, pcdfile);
+            pcdFileChange(nowFile->name, forceCompressed, distPcdPath);
         }
         strSplitResFree(&strSplitRes);
         nowFile = nowFile->next;

@@ -21,10 +21,10 @@ Image.MAX_IMAGE_PIXELS = None
 
 class upload(object):
     def __init__(self, ds_id, data_root):
-        self.data_root = self.as_posix(Path(data_root).absolute())
+        self.data_root = self.get_data_root(data_root)
         
         time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
-        pre =  os.path.expanduser('~') + f"/.td/upload/{time_str}/" + os.path.basename(data_root)
+        pre =  os.path.expanduser('~') + f"/.td/upload/{time_str}__" + os.path.basename(data_root)
 
         self.error_record_path = f"{pre}/error.txt"
         self.add_files_record_path = f"{pre}/add_file_record.json"
@@ -53,8 +53,6 @@ class upload(object):
         self.log_path = f"{pre}/log"
         self.log_fp = self.get_log_fp()
 
-        
-
         self.debug = False
         self.upload_files_path = {}
         self.add_files_path = []
@@ -67,6 +65,7 @@ class upload(object):
         self.is_force_Compressed = False
 
         self.ds_id = ds_id
+        self.dsinfo = None
         self.host = None
         self.ak = None
         self.batch_sn = None
@@ -90,6 +89,9 @@ class upload(object):
 
     def set_debug(self, debug):
         self.debug = debug
+    
+    def set_dsinfo(self, dsinfo):
+        self.dsinfo = dsinfo
 
     def set_retry_count(self, retry_count):
         self.retry_count = retry_count
@@ -130,22 +132,36 @@ class upload(object):
         return self.as_posix(os.path.join(*args))
 
     @staticmethod
-    def get_data_type(host, ds_id, ak):
+    def get_dsinfo(host, ds_id, ak):
         try:
             url_ds_info = f"{host}/v2/datasets/{ds_id}"
             headers = {"Access-Key": ak, "User-Agent": "apifox/1.0.0"}
             r = requests.get(url_ds_info, headers=headers)
             assert r.status_code == 200
             res = r.json()
-            return res["data"]["data_type"]
+            data_type = res["data"]["data_type"]
+            return res["data"]
         except Exception as e:
             error_str = f"expect error: 获取数据集类型失败，请检查 host:{host}，数据集id:{ds_id}，密钥:{ak}"
             raise_error(error_str)
+
+    def get_data_root(self, data_root):
+        try:
+            data_root = self.as_posix(Path(data_root).absolute())
+        except:
+            error_str = "expect error: 获取数据目录错误"
+            raise_error(error_str)
+        return data_root
     
     def get_upload_cache_root(self):
-        buffer = self.data_root.encode("utf-8")
-        data_root_md5 = hashlib.md5(buffer).hexdigest()
-        return os.path.expanduser('~') + f"/.td/upload_cache/{data_root_md5}"
+        try:
+            buffer = self.data_root.encode("utf-8")
+            data_root_md5 = hashlib.md5(buffer).hexdigest()
+            upload_cache_root = os.path.expanduser('~') + f"/.td/upload_cache/{data_root_md5}"
+        except:
+            error_str = "expect error: 获取缓存路径错误"
+            raise_error(error_str)
+        return upload_cache_root
 
     def assert_illegal_characters(self, path):
         for character in ILLEGAL_CHARACTER:
@@ -200,11 +216,15 @@ class upload(object):
             raise Exception(f"expect error: 暂不支持{oss_type}类型对象存储")
 
     def get_log_fp(self):
-        self.make_dir(self.log_path)
-        log_fp = open(self.log_path, "a", encoding="utf-8")
-        log_fp.write("-----------------TESTIN TD LOG-----------------\n")
-        log_fp.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
-        log_fp.write("\n")
+        try:
+            self.make_dir(self.log_path)
+            log_fp = open(self.log_path, "a", encoding="utf-8")
+            log_fp.write("-----------------TESTIN TD LOG-----------------\n")
+            log_fp.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
+            log_fp.write("\n")
+        except:
+            error_str = "expect error: 日志记录错误"
+            raise_error(error_str)
         return log_fp
     
     def loged(self, str_, end = None):
@@ -447,6 +467,29 @@ class upload(object):
         else:
             return buf[:-4].decode("utf-8"), True
     
+    def del_cache(self):
+        # 检查 上传 缓存
+        try:
+            if not os.path.exists(self.upload_cache_root):
+                return
+            if os.path.isdir(self.upload_cache_root):
+                shutil.rmtree(self.upload_cache_root)
+        except:
+            raise Exception(f"expect error: 缓存目录 {self.upload_cache_root} 删除失败")
+
+        # 点云精简缓存
+        try:
+            if not self.is_simplify_pcd:
+                return
+            pcd_s_root = self.path_join(self.data_root, PCD_S_ROOT)
+            if not os.path.exists(pcd_s_root):
+                return
+            if os.path.isdir(pcd_s_root):
+                shutil.rmtree(pcd_s_root)
+        except:
+            raise Exception(f"expect error: 缓存目录 {pcd_s_root} 删除失败")
+
+    
     def get_file_md5_(self, file_path):
         with open(file_path, "rb") as f:
             buffer = f.read()
@@ -515,12 +558,12 @@ class upload(object):
             error_path = self.get_relative_path(pic_file_path)
             raise Exception(f"expect error: {error_path} 获取图像尺寸失败")
     
-    def get_file_modify_time(self, filePath):
+    def get_file_modify_time(self, file_path):
         try:
-            t = os.path.getmtime(filePath)
+            t = os.path.getmtime(file_path)
             return str(t)
         except Exception as e:
-            error_path = self.get_relative_path(filePath)
+            error_path = self.get_relative_path(file_path)
             raise Exception(f"expect error: {error_path} 获取文件修改时间失败")
 
     def make_dir(self, file_path):
@@ -905,3 +948,5 @@ class upload(object):
             if not success_flag:
                 record_error(errors, self.error_record_path)
                 raise Exception("expect error: 提交文件列表失败")
+        
+        self.del_cache()

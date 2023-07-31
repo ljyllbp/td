@@ -22,10 +22,10 @@ class Exporter(object):
         # |file_name|query|string|否|文件名称，暂时支持左匹配模糊查询|
         # download_type str label(标注结果)/original(原始文件)/original_and_label(标注结果加原始文件)
 
-        self.out = self.as_posix(Path(out).absolute()) # 保存路径
+        self.out = self.get_out(out) # 保存路径
 
         time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()).replace(" ", "_").replace(":","-")
-        pre = os.path.expanduser('~') + f"/.td/export/{time_str}/" + os.path.basename(out)
+        pre = os.path.expanduser('~') + f"/.td/export/{time_str}__" + os.path.basename(out)
         self.error_record_path = f"{pre}/error.txt"
         self.log_path = f"{pre}/log"
         self.log_fp = self.get_log_fp()
@@ -113,13 +113,25 @@ class Exporter(object):
     
     def set_executor(self, thread_num):
         self.executor = executor.Executor(thread_num)
+    
+    def get_out(self, out):
+        try:
+            out = self.as_posix(Path(out).absolute())
+        except:
+            error_str = "expect error: 获取保存目录错误"
+            raise_error(error_str)
+        return out
 
     def get_log_fp(self):
-        self.make_dir(self.log_path)
-        log_fp = open(self.log_path, "a", encoding="utf-8")
-        log_fp.write("-----------------TESTIN TD LOG-----------------\n")
-        log_fp.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
-        log_fp.write("\n")
+        try:
+            self.make_dir(self.log_path)
+            log_fp = open(self.log_path, "a", encoding="utf-8")
+            log_fp.write("-----------------TESTIN TD LOG-----------------\n")
+            log_fp.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
+            log_fp.write("\n")
+        except:
+            error_str = "expect error: 日志记录错误"
+            raise_error(error_str)
         return log_fp
     
     def loged(self, str_, end = None):

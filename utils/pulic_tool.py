@@ -20,17 +20,21 @@ def raise_error(error_str, error_record_path=None):
         exit()
 
 def record_error(error_str, error_record_path):
-    error_str = str(error_str)
-    error_record_root = os.path.dirname(error_record_path)
-    if not os.path.exists(error_record_root):
-        os.makedirs(error_record_root)
-    with open(error_record_path, "a", encoding='utf-8') as f:
-        f.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
-        f.write("\n")
-        f.write(error_str)
-        f.write("\n")
-        f.write(traceback.format_exc())
-        f.write("\n")
+    try:
+        error_str = str(error_str)
+        error_record_root = os.path.dirname(error_record_path)
+        if not os.path.exists(error_record_root):
+            os.makedirs(error_record_root)
+        with open(error_record_path, "a", encoding='utf-8') as f:
+            f.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
+            f.write("\n")
+            f.write(error_str)
+            f.write("\n")
+            f.write(traceback.format_exc())
+            f.write("\n")
+    except:
+        print("   记录错误日志错误")
+        exit()
 
 def record_json(json_data, json_path):
     json_root = os.path.dirname(json_path)

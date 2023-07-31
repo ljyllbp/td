@@ -143,7 +143,8 @@ class image_upload(upload):
             
             debug_path = self.get_relative_path(segment_root)
             segment_root_index = index + 1
-            self.loged(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
+            data_type_zh = self.dsinfo["data_type_zh"]
+            self.loged(f"{data_type_zh} 校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
         
             img_files_info = self.check_img_root(segment_root)
             pre_label_files_info = self.check_pre_label_root(segment_root)

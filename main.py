@@ -19,28 +19,37 @@ def quit(signum, frame):
     sys.exit()
 
 def get_upload_class(host, ds_id, ak):
-    data_type = upload.get_data_type(host,ds_id, ak)
+    dsinfo = upload.get_dsinfo(host,ds_id, ak)
+    data_type = dsinfo["data_type"]
     if data_type == "fushion_sensor_pointcloud":
         upload_class = pointcloud_upload
+        dsinfo["data_type_zh"] = "点云"
     elif data_type == "text":
         upload_class = text_upload
+        dsinfo["data_type_zh"] = "文本"
     elif data_type == "image":
         upload_class = image_upload
+        dsinfo["data_type_zh"] = "图像"
     elif data_type == "segment_image":
         upload_class = segment_image_upload
+        dsinfo["data_type_zh"] = "序列图像"
     elif data_type == "audio":
         upload_class = audio_upload
+        dsinfo["data_type_zh"] = "音频"
     elif data_type == "segment_audio":
         upload_class = segment_audio_upload
+        dsinfo["data_type_zh"] = "序列音频"
     elif data_type == "video":
+        dsinfo["data_type_zh"] = "视频"
         upload_class = video_upload
     elif data_type == "segment_video":
+        dsinfo["data_type_zh"] = "序列视频"
         upload_class = segment_video_upload
     else:
         error_str = f"expect error: 暂不支持{data_type}类型"
         raise_error(error_str)
 
-    return upload_class, data_type
+    return upload_class, dsinfo
 
 def mk_td():
     td = td_tool.Td("Testin commandline tool")
@@ -49,7 +58,7 @@ def mk_td():
 
     command_upload = td_tool.Command("upload", "upload local files")
     
-    command_upload.add_mandatory("ak", type=str)
+    command_upload.add_mandatory("access_key", type=str)
     command_upload.add_mandatory("ds_id", type=str)
     command_upload.add_mandatory("data_root", type=str)
 
@@ -67,7 +76,7 @@ def mk_td():
 
 
     command_export = td_tool.Command("export", "export files")
-    command_export.add_mandatory("ak", type=str)
+    command_export.add_mandatory("access_key", type=str)
     command_export.add_mandatory("task_batch_key", type=str)
     command_export.add_mandatory("out", type=str)
 
@@ -112,6 +121,11 @@ def check_upload_args(args):
         error_str = f"expect error: {data_root} 应为数据目录"
         raise_error(error_str)
     
+    host = args["host"]
+    if host.endswith(("\\","/")):
+        error_str = f"expect error: {host} 不应以‘/’,'\\'结尾"
+        raise_error(error_str)
+    
     package_count = args["package_count"]
     if package_count is not None and package_count <= 0:
         error_str = f"expect error: 分包数量应为正整数"
@@ -137,6 +151,11 @@ def check_export_args(args):
         raise_error(error_str)
     if not os.path.isdir(out):
         error_str = f"expect error: {out} 应为目录"
+        raise_error(error_str)
+    
+    host = args["host"]
+    if host.endswith(("\\","/")):
+        error_str = f"expect error: {host} 不应以‘/’,'\\'结尾"
         raise_error(error_str)
     
     download_type = args["download_type"]
@@ -190,23 +209,24 @@ def start():
     command_name = td.command[td.command_index].name
     if command_name == "upload":
         check_upload_args(args)
-        upload_class, data_type = get_upload_class(args["host"], args["ds_id"], args["ak"])
+        upload_class, dsinfo = get_upload_class(args["host"], args["ds_id"], args["access_key"])
         upload_ = upload_class(args["ds_id"], args["data_root"])
         upload_.set_debug(True)
+        upload_.set_dsinfo(dsinfo)
         upload_.set_retry_count(args["retry_count"])
-        upload_.set_host_and_ak(args["host"], args["ak"])
+        upload_.set_host_and_ak(args["host"], args["access_key"])
         upload_.set_batch_sn(args["batch_sn"])
         upload_.set_use_cache(args["no_cache"])
         if args["thread_num"] is not None:
             upload_.set_executor(args["thread_num"])
         upload_.set_pcd_option(args["simplify_pcd"], args["force_compressed"])
-        if data_type in ["fushion_sensor_pointcloud", "segment_image", "segment_audio", "segment_video"]:
+        if dsinfo["data_type"] in ["fushion_sensor_pointcloud", "segment_image", "segment_audio", "segment_video"]:
             upload_.set_package_count(args["package_count"])
         upload_.start_upload()
 
     elif command_name == "export":
         check_export_args(args)
-        export_ = Exporter(args["out"], args["task_batch_key"], args["ak"], host=args["host"])
+        export_ = Exporter(args["out"], args["task_batch_key"], args["access_key"], host=args["host"])
         if args["thread_num"] is not None:
             export_.set_executor(args["thread_num"])
         export_.set_retry_count(args["retry_count"])

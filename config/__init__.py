@@ -22,7 +22,8 @@ TD_VERSION = "1.0.1"
 
 BUCKET = "default"
 
-PACKAGE_SPECIAL_STRING = "__TESTINPACKAGE__"
+PACKAGE_SPECIAL_STRING = "__TDPACKAGE__"
+PCD_S_ROOT = ".TD_PCD_FILES"
 
 CALL_BACK_SUCCESS_COUNT = 5000
 
@@ -44,6 +45,91 @@ PRIVATE_HOST = ""
 
 PRODUCTION_AK = ""
 PRODUCTION_HOST = "http://label-std.testin.cn"
+
+RANGE = {
+    "circle": {
+        "name": {
+            "type": (str),
+            "error_str": "name 应为字符串类型"
+        },
+        "radius": {
+            "type": (int, float),
+            "error_str": "radius 应为整型或浮点型"
+        },
+        "center": {
+            "type": (list),
+            "len": 3,
+            "mem_type": (float, int),
+            "error_str": "center 应为长度为3，类型为整型或浮点型的列表"
+        }
+    },
+    "arc": {
+        "name": {
+            "type": (str),
+            "error_str": "name 应为字符串类型"
+        },
+        "start": {
+            "type": (int, float),
+            "error_str": "start 应为整型或浮点型"
+        },
+        "end": {
+            "type": (int, float),
+            "error_str": "end 应为整型或浮点型"
+        },
+        "radius": {
+            "type": (int, float),
+            "error_str": "radius 应为整型或浮点型"
+        },
+        "center": {
+            "type": (list),
+            "len": 3,
+            "mem_type": (float, int),
+            "error_str": "center 长度为3，类型为整型或浮点型的列表"
+        }
+    },
+    "rect": {
+        "name": {
+            "type": (str),
+            "error_str": "name 应为字符串类型"
+        },
+        "x": {
+            "type": (list),
+            "len": 2,
+            "mem_type": (float, int),
+            "error_str": "x 长度为2，类型为整型或浮点型的列表"
+        },
+        "y": {
+            "type": (list),
+            "len": 2,
+            "mem_type": (float, int),
+            "error_str": "y 长度为2，类型为整型或浮点型的列表"
+        }
+    },
+    "box": {
+        "name": {
+            "type": (str),
+            "error_str": "name 应为字符串类型"
+        },
+        "x": {
+            "type": (list),
+            "len": 2,
+            "mem_type": (float, int),
+            "error_str": "x 长度为2，类型为整型或浮点型的列表"
+        },
+        "y": {
+            "type": (list),
+            "len": 2,
+            "mem_type": (float, int),
+            "error_str": "x 长度为2，类型为整型或浮点型的列表"
+        },
+         "z": {
+            "type": (list),
+            "len": 2,
+            "mem_type": (float, int),
+            "error_str": "z 长度为2，类型为整型或浮点型的列表"
+        }
+    }
+}
 
 SENSOR_PARAMS_STRUCT = {
     "pinhole":{

@@ -223,7 +223,8 @@ class text_upload(upload):
             
             debug_path = self.get_relative_path(segment_root)
             segment_root_index = index + 1
-            self.loged(f"校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
+            data_type_zh = self.dsinfo["data_type_zh"]
+            self.loged(f"{data_type_zh} 校验目录: {segment_root_index}/{segment_root_count} {debug_path}")
             
             self.check_text_root(segment_root)
             self.struct_text_root(segment_root)
