@@ -104,8 +104,8 @@ def mk_td():
 
     command_export.add_optional("status", type=int, little_name='s', default_value=99, detail="status, default 99")
 
-    command_export.add_optional("task_id", type=int, little_name='t', default_value=None, detail="task id, default none")
-    command_export.add_optional("thread_num", type=int, little_name='n', default_value=None, detail="thread number, default cpu count")
+    command_export.add_optional("task_id", type=int, default_value=None, detail="task id, default none")
+    command_export.add_optional("thread_num", type=int, little_name='t', default_value=None, detail="thread number, default cpu count")
     command_export.add_optional("work_type", type=int, little_name='w', default_value=1, detail="work type, default 1")
 
 

@@ -25,7 +25,7 @@ td命令行工具为方便针对标注平台数据上传、下载的本地命令
 
 ### upload
 
-td upload <ak\> <ds_id\> <data_root\> [flags]
+td upload <access_key\> <ds_id\> <data_root\> [flags]
 
 **功能**
 
@@ -40,7 +40,7 @@ td upload <ak\> <ds_id\> <data_root\> [flags]
 
 |字段名|类型|说明|
 |:-:|:-:|:-:|
-|ak|string|平台创建数据集账号的密钥|
+|access_key|string|平台创建数据集账号的密钥|
 |ds_id|string|平台数据集id|
 |data_root|string|符合数据集格式要求的数据目录|
 
@@ -67,7 +67,7 @@ td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点
 
 ### export
 
-td export <ak\> <task_batch_key\> <out\> [flags]
+td export <access_key\> <task_batch_key\> <out\> [flags]
 
 **功能**
 
@@ -77,7 +77,7 @@ td export <ak\> <task_batch_key\> <out\> [flags]
 
 |字段名|类型|说明|
 |:-:|:-:|:-:|
-|ak|string|平台创建数据集账号的密钥|
+|access_key|string|平台创建数据集账号的密钥|
 |task_batch_key|string|平台任务key|
 |out|string|保存数据的目录|
 
@@ -99,8 +99,8 @@ td export <ak\> <task_batch_key\> <out\> [flags]
 |retry_count|r|10|int|每个文件下载失败后重试次数|
 |seg_dir_name||none|string|序列名称|
 |status|s|99|int|题状态|
-|task_id|t|none|int|子题id|
-|thread_num|n|cpu 个数|int|下载文件并发数|
+|task_id||none|int|子题id|
+|thread_num|t|cpu 个数|int|下载文件并发数|
 |work_type|w|1|int|工序|
 
 **工序id对应表**
@@ -125,7 +125,7 @@ td export <ak\> <task_batch_key\> <out\> [flags]
 **示例**
 ```
 td export 95c6f35e29bbd0621d2a0ef2c8846adee86c 230619ad96c /out
-td export 95c6f35e29bbd0621d2a0ef2c8846adee86c 230619ad96c /out -d label -f 000.pcd -m --host http://label-std.testin.cn --operate_work_type 1 --operate_users 129 -p 1031110 -r 10 --seg_dir_name segment_000 -s 99 -t 2794732  -n 10 -w 1 --mark_status able --operate_type first_operate --overwrite
+td export 95c6f35e29bbd0621d2a0ef2c8846adee86c 230619ad96c /out -d label -f 000.pcd -m --host http://label-std.testin.cn --operate_work_type 1 --operate_users 129 -p 1031110 -r 10 --seg_dir_name segment_000 -s 99 --task_id 2794732  -t 10 -w 1 --mark_status able --operate_type first_operate --overwrite
 td export 95c6f35e29bbd0621d2a0ef2c8846adee86c 230619ad96c /out --download_type label --file_name 000.pcd --have_more_info --host http://label-std.testin.cn --operate_work_type 1 --operate_users 129 --package_id 1031110 --retry_count 10 --seg_dir_name segment_000 --status 99 --task_id 2794732  --thread_num 10 --work_type 1 --mark_status able --operate_type first_operate --overwrite
 ```
 

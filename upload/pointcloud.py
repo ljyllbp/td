@@ -141,7 +141,7 @@ class pointcloud_upload(upload):
         segment_index = 0
         for segment_relative_root in self.upload_files_path.keys():
             segment_index += 1
-            self.loged(f"重新获取序列信息: {segment_index}/{segment_count} segment_relative_root")
+            self.loged(f"重新获取序列信息: {segment_index}/{segment_count} {segment_relative_root}")
             for file_relative_path in self.upload_files_path[segment_relative_root].keys():
                 self.upload_files_path[segment_relative_root][file_relative_path]["size"] = self.get_file_size(self.upload_files_path[segment_relative_root][file_relative_path]["path_original"])
                 self.upload_files_path[segment_relative_root][file_relative_path]["md5"] = self.get_file_md5(self.upload_files_path[segment_relative_root][file_relative_path]["path_original"])
