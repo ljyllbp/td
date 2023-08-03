@@ -7,6 +7,7 @@ class text_upload(upload):
         try:
             # self.delete_add_files()
             self.check_data_root()
+            self.check_md5()
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
         except Exception as e:

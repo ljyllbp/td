@@ -6,6 +6,7 @@ class segment_image_upload(upload):
     def start_upload(self):
         try:
             self.check_data_root()
+            self.check_md5()
             self.segment_split(IMAGE_FILE_TYPES)
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()

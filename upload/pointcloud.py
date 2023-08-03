@@ -11,6 +11,7 @@ class pointcloud_upload(upload):
             self.check_data_root()
             self.segment_split()
             self.simplify_pcd()
+            self.check_md5()
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
         except Exception as e:
@@ -538,7 +539,7 @@ class pointcloud_upload(upload):
                 try:
                     assert(isinstance(config["poses"][pcd_file_name], list))
                     for i in range(16):
-                        assert(isinstance(config["poses"][pcd_file_name][i],float))
+                        assert(isinstance(config["poses"][pcd_file_name][i],(float, int)))
                 except:
                     raise Exception(f"expect error: {error_path} 点云文件:{pcd_file_name} pose参数错误 应为16位float的list")
 
@@ -585,8 +586,11 @@ class pointcloud_upload(upload):
         else:
             pcd_file = os.path.basename(pcd_file_path)
             segment_name = os.path.basename(os.path.dirname(os.path.dirname(pcd_file_path)))
-            return self.path_join(self.data_root, PCD_S_ROOT, segment_name, "lidar",pcd_file)
-
+            new_pcd_file_path = self.path_join(self.data_root, PCD_S_ROOT, segment_name, "lidar",pcd_file)
+            if os.path.exists(new_pcd_file_path):
+                return new_pcd_file_path
+            else:
+                return pcd_file_path
 
     # 获取上传文件列表
     def get_file_list(self, segment_root, pcd_files_info, camare_images_dict, pre_label_files_info):

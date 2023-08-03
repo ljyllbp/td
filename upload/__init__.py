@@ -72,6 +72,7 @@ class upload(object):
         self.oss_config = None
         self.callback_url = None
         self.error_callback_url = None
+        self.check_md5_ulr = None
         self.id = None
         self.process_type = None
 
@@ -852,6 +853,67 @@ class upload(object):
                 segment_relative_root
             ].keys():
                 self.upload_files_path[segment_relative_root][file_relative_path]["path_original"] = self.upload_files_path[segment_relative_root][file_relative_path]["path"]
+    
+    def check_md5(self):
+        if self.dsinfo["check_md5"] == 1:
+            return
+        
+        md5 = []
+
+        for segment_relative_root, segment_files in self.upload_files_path.items():
+            for file_relative_path,  file_info in segment_files.items():
+                # 点云config文件不判重
+                if self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
+                    if file_relative_path.endswith("config.json") and self.path_join(segment_relative_root, "config.json") == file_relative_path:
+                        print(file_relative_path)
+                        continue
+
+                # 文本图像文件不判重
+                if self.dsinfo["data_type"] == "text":
+                    if not file_relative_path.endswith(".json"):
+                        continue
+                    if file_relative_path.endswith(".json") and os.path.basename(os.path.dirname(file_relative_path)) == "pre_label":
+                        continue
+
+                md5.append(file_info["md5"])
+        
+        md5_total_count = len(md5)
+        count = md5_total_count // CHECK_MD5_COUNT
+        if md5_total_count % CHECK_MD5_COUNT != 0:
+            count += 1
+        
+        self.check_md5_ulr = (
+            f"{self.host}/v2/datasets/{self.ds_id}/check-md5"
+        )
+
+        for i in range(count):
+            if i != count -1:
+                md5_part = md5[i*CHECK_MD5_COUNT:i*CHECK_MD5_COUNT+CHECK_MD5_COUNT] 
+            else:
+                md5_part = md5[i*CHECK_MD5_COUNT:]
+            
+            data = {
+                "md5": md5_part
+            }
+
+            headers = {
+                "Content-Type": "application/json",
+                "Access-Key": self.ak,
+            }
+
+            res, errors, success_flag = retry_fuction(self.retry_count, requests.post, self.check_md5_ulr, json=data, timeout=20, headers=headers)
+
+            if not success_flag:
+                record_error(errors, self.error_record_path)
+                raise Exception("expect error: 检查文件重复失败")
+            
+            try:
+                repeat_num = len(res.json()["data"]["items"])
+            except:
+                raise Exception("expect error: 检查文件重复失败")
+            
+            if repeat_num != 0:
+                raise Exception("expect error: 文件重复，若要继续上传，请在数据集开启允许数据重复")
 
     def call_back_fail(self, e):
         return

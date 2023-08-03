@@ -9,7 +9,7 @@
 #include <dirent.h>
 #include <time.h>
 #include <libgen.h>
-
+#include <windows.h>
 
 #define HLOG 16
 #define HSIZE (1 << (HLOG))
@@ -1740,8 +1740,8 @@ int myMkdir(char *dir){
 
     free(pDir);
     pDir = NULL;
-
-    if(mkdir(dir, 0777) < 0){
+  
+    if(mkdir(dir) < 0){
         return -1;
     }
     
@@ -1780,7 +1780,6 @@ void pcdFileChange(char * pcdPath, bool forceCompressed, char *distPcdPath){
 
         writePcdHead(&pcdinfo, fp);
         writePcdData(&pcdinfo, fp);
-        writePcdTail(fp);
         fclose(fp);
         destroyMemoryPcdInfo(&pcdinfo);
     }
@@ -1902,12 +1901,14 @@ void start(char *startDir, char *resSaveFile, bool forceCompressed, bool debug){
     int pcdfileCount = 0;
     char pcdfile[1000];
     char distPcdPath[1000];
+    char headNameZh[] = {0Xbe,0Xab,0Xbc,0Xf2,0Xb5,0Xe3,0Xd4,0Xc6,0X0};
     
 
     file.name = NULL;
     file.next = NULL;
 
     getFile(startDir, &file);
+
     char *dataName = myBasename(startDir);
     
     nowFile = &file;
@@ -1924,7 +1925,7 @@ void start(char *startDir, char *resSaveFile, bool forceCompressed, bool debug){
 
     nowFile = &file;
     int nowPcdfileCount = 0;
-    
+
     while (nowFile->name != NULL){
 
         split(&strSplitRes, nowFile->name, "/");
@@ -1933,7 +1934,7 @@ void start(char *startDir, char *resSaveFile, bool forceCompressed, bool debug){
             nowPcdfileCount++;
             getPcdfile(nowFile->name, startDir, pcdfile);
             if (debug){
-                printf("精简点云: %d/%d %s/%s", nowPcdfileCount, pcdfileCount, dataName, pcdfile);
+                printf("%s: %d/%d %s/%s",headNameZh , nowPcdfileCount, pcdfileCount, dataName, pcdfile);
             }
             memset(distPcdPath, '\0', 1000);
             strcpy(distPcdPath, startDir);
@@ -2017,6 +2018,9 @@ void testType(){
 int main(int argc, char *argv[]) {
     testType();
 
+    SetConsoleOutputCP(936);
+    // setlocale();
+
     char *startDir;
     char *resSaveFile;
     bool forceCompressed, debug;
@@ -2040,6 +2044,7 @@ int main(int argc, char *argv[]) {
     
     startDir = argv[1];
     resSaveFile = argv[2];
+
     start(startDir, resSaveFile, forceCompressed, debug);
 
     return 0;
