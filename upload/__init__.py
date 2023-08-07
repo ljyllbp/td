@@ -865,7 +865,6 @@ class upload(object):
                 # 点云config文件不判重
                 if self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
                     if file_relative_path.endswith("config.json") and self.path_join(segment_relative_root, "config.json") == file_relative_path:
-                        print(file_relative_path)
                         continue
 
                 # 文本图像文件不判重

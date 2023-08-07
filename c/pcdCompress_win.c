@@ -1780,6 +1780,7 @@ void pcdFileChange(char * pcdPath, bool forceCompressed, char *distPcdPath){
 
         writePcdHead(&pcdinfo, fp);
         writePcdData(&pcdinfo, fp);
+        writePcdTail(fp);
         fclose(fp);
         destroyMemoryPcdInfo(&pcdinfo);
     }

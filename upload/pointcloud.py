@@ -419,7 +419,6 @@ class pointcloud_upload(upload):
                             for i in info[k]:
                                 assert(isinstance(i, v["mem_type"]))
                     except Exception as e:
-                        print(str(e))
                         error_str_ = v["error_str"]
                         error_str = f"{range_type} 第{index_}个标注范围 {error_str_}"
                         return is_error, error_str
