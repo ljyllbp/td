@@ -98,7 +98,7 @@ class upload(object):
         self.retry_count = retry_count
 
     def set_host_and_ak(self, host, ak):
-        self.host = host
+        self.host = self.host_deal(host)
         self.ak = ak
     
     def set_package_count(self, package_count):
@@ -133,8 +133,17 @@ class upload(object):
         return self.as_posix(os.path.join(*args))
 
     @staticmethod
+    def host_deal(host):
+        if "http://" in host or "https://" in host:
+            host = host.rstrip("/").rstrip("\\")
+        else:
+            host = "http://" + host.strip("/").rstrip("\\")
+        return host
+
+    @staticmethod
     def get_dsinfo(host, ds_id, ak):
         try:
+            host = upload.host_deal(host)
             url_ds_info = f"{host}/v2/datasets/{ds_id}"
             headers = {"Access-Key": ak, "User-Agent": "apifox/1.0.0"}
             r = requests.get(url_ds_info, headers=headers)

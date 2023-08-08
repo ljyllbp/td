@@ -32,7 +32,7 @@ class Exporter(object):
 
         self.task_batch_key = task_batch_key # 任务key
         self.ak = ak # 密钥
-        self.host = host # host
+        self.host = self.host_deal(host) # host
         self.download_type = download_type # 下载类型
         self.have_more_info = have_more_info # 是否包含非标注信息
 
@@ -147,6 +147,13 @@ class Exporter(object):
 
     def path_join(self, *args):
         return self.as_posix(os.path.join(*args))
+    
+    def host_deal(self, host):
+        if "http://" in host or "https://" in host:
+            host = host.rstrip("/").rstrip("\\")
+        else:
+            host = "http://" + host.strip("/").rstrip("\\")
+        return host
     
     def make_dir(self, file_path):
         file_root = os.path.dirname(file_path)

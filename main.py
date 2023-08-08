@@ -121,19 +121,14 @@ def check_upload_args(args):
         error_str = f"expect error: {data_root} 应为数据目录"
         raise_error(error_str)
     
-    host = args["host"]
-    if host.endswith(("\\","/")):
-        error_str = f"expect error: {host} 不应以‘/’,'\\'结尾"
-        raise_error(error_str)
-    
     package_count = args["package_count"]
     if package_count is not None and package_count <= 0:
         error_str = f"expect error: 分包数量应为正整数"
         raise_error(error_str)
     
     retry_count = args["retry_count"]
-    if retry_count < 0 :
-        args["retry_count"] = 0
+    if retry_count <= 0 :
+        args["retry_count"] = 1
     elif retry_count > MAX_RETRY_COUNT:
         args["retry_count"] = MAX_RETRY_COUNT
     
@@ -153,19 +148,14 @@ def check_export_args(args):
         error_str = f"expect error: {out} 应为目录"
         raise_error(error_str)
     
-    host = args["host"]
-    if host.endswith(("\\","/")):
-        error_str = f"expect error: {host} 不应以‘/’,'\\'结尾"
-        raise_error(error_str)
-    
     download_type = args["download_type"]
     if download_type not in ["label", "original", "original_and_label"]:
         error_str = f"expect error: download_type 的值为{download_type}, 应为 label, original, original_and_label"
         raise_error(error_str)
 
     retry_count = args["retry_count"]
-    if retry_count < 0 :
-        args["retry_count"] = 0
+    if retry_count <= 0 :
+        args["retry_count"] = 1
     elif retry_count > MAX_RETRY_COUNT:
         args["retry_count"] = MAX_RETRY_COUNT
 
