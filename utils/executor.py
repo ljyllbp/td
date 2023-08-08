@@ -2,7 +2,7 @@ import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class Executor(object):
-    def __init__(self, thread_nums=multiprocessing.cpu_count()):
+    def __init__(self, thread_nums=4):
         self._executor = ThreadPoolExecutor(max_workers=thread_nums)
 
     def execute(self, func, *arg):
