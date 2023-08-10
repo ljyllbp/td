@@ -463,16 +463,7 @@ class upload(object):
         else:
             return buf[:-4].decode("utf-8"), True
     
-    def del_cache(self):
-        # 检查 上传 缓存
-        try:
-            if not os.path.exists(self.upload_cache_root):
-                return
-            if os.path.isdir(self.upload_cache_root):
-                shutil.rmtree(self.upload_cache_root)
-        except:
-            raise Exception(f"expect error: 缓存目录 {self.upload_cache_root} 删除失败")
-
+    def del_pcd_cache(self):
         # 点云精简缓存
         try:
             if not self.is_simplify_pcd:
@@ -484,7 +475,16 @@ class upload(object):
                 shutil.rmtree(pcd_s_root)
         except:
             raise Exception(f"expect error: 缓存目录 {pcd_s_root} 删除失败")
-
+        
+    def del_cache(self):
+        # 检查 上传 缓存
+        try:
+            if not os.path.exists(self.upload_cache_root):
+                return
+            if os.path.isdir(self.upload_cache_root):
+                shutil.rmtree(self.upload_cache_root)
+        except:
+            raise Exception(f"expect error: 缓存目录 {self.upload_cache_root} 删除失败")        
     
     def get_file_md5_(self, file_path):
         with open(file_path, "rb") as f:
@@ -942,7 +942,10 @@ class upload(object):
         if repeat_index_groups:
             if self.dsinfo["data_type"] == "text":
                 self.delete_add_files()
-
+            
+            if self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
+                self.del_pcd_cache()
+            
             error_str = "expect error: 同一批次内数据重复:\n"
             errorlines = []
             for repeat_index_group in repeat_index_groups:
