@@ -485,6 +485,8 @@ class upload(object):
                 shutil.rmtree(self.upload_cache_root)
         except:
             raise Exception(f"expect error: 缓存目录 {self.upload_cache_root} 删除失败")        
+        
+        self.del_pcd_cache()
     
     def get_file_md5_(self, file_path):
         with open(file_path, "rb") as f:
