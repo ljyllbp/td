@@ -948,7 +948,7 @@ class upload(object):
             if self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
                 self.del_pcd_cache()
             
-            error_str = "expect error: 同一批次内数据重复:\n"
+            error_str = "expect error: 重复数据:\n"
             errorlines = []
             for repeat_index_group in repeat_index_groups:
                 repeat_paths = []
@@ -964,6 +964,8 @@ class upload(object):
             errorlines.sort()
             for errorline in errorlines:
                 error_str += errorline
+            
+            error_str += "\n\n   同一批次内数据重复"
             
             raise_error(error_str, self.error_record_path)
         
@@ -1010,7 +1012,7 @@ class upload(object):
             if self.dsinfo["data_type"] == "text":
                 self.delete_add_files()
                 
-            error_str = "expect error: 该批次内数据与数据集中数据重复，重复数据:\n"
+            error_str = "expect error: 重复数据：\n"
             errorlines = []
             for repeat_index in repeat_indexs:
                 errorline = "\n   \""
@@ -1020,6 +1022,7 @@ class upload(object):
             errorlines.sort()
             for errorline in errorlines:
                 error_str += errorline
+            error_str += "\n\n   该批次内数据与数据集中数据重复，若想上传，请在数据集设置开启允许数据重复"
             raise_error(error_str, self.error_record_path)
 
     def call_back_fail(self, e):
