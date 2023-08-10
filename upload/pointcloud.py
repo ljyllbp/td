@@ -144,6 +144,10 @@ class pointcloud_upload(upload):
             segment_index += 1
             self.loged(f"重新获取序列信息: {segment_index}/{segment_count} {segment_relative_root}")
             for file_relative_path in self.upload_files_path[segment_relative_root].keys():
+                if not file_relative_path.endswith((POINTCLOUD_FILE_TYPES)):
+                    continue
+                pcd_file_path = self.upload_files_path[segment_relative_root][file_relative_path]["path_original"]
+                self.upload_files_path[segment_relative_root][file_relative_path]["path_original"] = self.get_new_pcd_file_path(pcd_file_path)
                 self.upload_files_path[segment_relative_root][file_relative_path]["size"] = self.get_file_size(self.upload_files_path[segment_relative_root][file_relative_path]["path_original"])
                 self.upload_files_path[segment_relative_root][file_relative_path]["md5"] = self.get_file_md5(self.upload_files_path[segment_relative_root][file_relative_path]["path_original"])
 
@@ -608,8 +612,7 @@ class pointcloud_upload(upload):
             
             pcd_file_path = pcd_file_info["file_path"]
             pcd_file_relative_path = self.get_relative_path(pcd_file_path)
-            pcd_file_path_ = self.get_new_pcd_file_path(pcd_file_path)
-            self.upload_files_path[segment_relative_root][pcd_file_relative_path] = self.get_file_info(pcd_file_path_, size_md5=not(self.is_simplify_pcd))
+            self.upload_files_path[segment_relative_root][pcd_file_relative_path] = self.get_file_info(pcd_file_path, size_md5=not(self.is_simplify_pcd))
             self.upload_files_count += 1
 
             # 相机目录

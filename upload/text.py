@@ -11,7 +11,6 @@ class text_upload(upload):
             self.add_order_sn_and_sequence_id()
             self.get_batch_sn()
         except Exception as e:
-            self.save_add_files()
             self.delete_add_files()
             raise_error(e, self.error_record_path)
 
@@ -28,7 +27,6 @@ class text_upload(upload):
             self.call_back_fail(e)
             raise_error(e, self.error_record_path)
         finally:
-            self.save_add_files()
             self.delete_add_files()
             self.log_fp.close()
 
@@ -186,16 +184,18 @@ class text_upload(upload):
                         self.upload_files_path[segment_relative_root][tar_img_file_relative_path]["path_original"] = source_img_file_path
                         self.upload_files_count += 1
 
-                text_content_save_path = self.path_join(segment_root,"text","." + file_name,".text","." + str(data_index).rjust(5, "0") + ".json")
-                self.add_files_path.append(self.path_join(segment_root,"text","." + file_name))
+                text_content_save_path = self.path_join(segment_root,"text",TEXT_SPLIT_ROOT,"." + file_name,".text","." + str(data_index).rjust(5, "0") + ".json")
+                self.add_files_path.append(self.path_join(segment_root,"text",TEXT_SPLIT_ROOT,"." + file_name))
+                
                 self.make_dir(text_content_save_path)
                 with open(text_content_save_path, "w", encoding="utf-8") as f:
                     json.dump(text_content, f, ensure_ascii=False, indent=4)
+              
                 
                 # 将text添加到列表
                 text_content_save_path_ = self.path_join(segment_root,file_name,"text",str(data_index).rjust(5, "0") + ".json")
                 text_content_save_relative_path_ = self.get_relative_path(text_content_save_path_)
-                self.upload_files_path[segment_relative_root][text_content_save_relative_path_] = self.get_file_info(text_content_save_path)
+                self.upload_files_path[segment_relative_root][text_content_save_relative_path_] = self.get_file_info(text_content_save_path, is_text=True)
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["name"] = self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["name"][1:]
                 self.upload_files_path[segment_relative_root][text_content_save_relative_path_]["path_original"] = text_content_save_path
                 self.upload_files_count += 1
@@ -203,7 +203,7 @@ class text_upload(upload):
                 # 预标注结果
                 if "pre_label" not in value:
                     continue
-                pre_label_content_save_path = self.path_join(segment_root,"text","." + file_name,".pre_label","."+str(data_index).rjust(5, "0") + ".json")
+                pre_label_content_save_path = self.path_join(segment_root,"text",TEXT_SPLIT_ROOT,"." + file_name,".pre_label","."+str(data_index).rjust(5, "0") + ".json")
                 self.make_dir(pre_label_content_save_path)
                 with open(pre_label_content_save_path, "w", encoding="utf-8") as f:
                     json.dump(value["pre_label"], f, ensure_ascii=False, indent=4)

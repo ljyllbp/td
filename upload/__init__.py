@@ -119,13 +119,6 @@ class upload(object):
         if not os.path.exists(self.upload_cache_root):
             self.use_cache = False
     
-    def save_add_files(self):
-        add_files_record_root = os.path.dirname(self.add_files_record_path)
-        if not os.path.exists(add_files_record_root):
-            os.makedirs(add_files_record_root)
-        with open(self.add_files_record_path, "w", encoding="utf-8") as f:
-            json.dump(self.add_files_path, f, ensure_ascii=False, indent=4)
-    
     def as_posix(self, file_path):
         return Path(file_path).as_posix()
 
@@ -205,16 +198,9 @@ class upload(object):
                 raise Exception(f"非法字符:{word}, 应为大小写字母,数字,'-','_'")
         
     def delete_add_files(self):
-        if os.path.exists(self.add_files_record_path):
-            with open(self.add_files_record_path, "r", encoding="utf-8") as f:
-                add_files_path = json.load(f)
-                for add_file_path in add_files_path:
-                    if os.path.exists(add_file_path):
-                        if os.path.isfile(add_file_path):
-                            os.remove(add_file_path)
-                        else:
-                            shutil.rmtree(add_file_path)
-            os.remove(self.add_files_record_path)
+        text_split_root = self.path_join(self.data_root, "text", TEXT_SPLIT_ROOT)
+        if os.path.exists(text_split_root) and os.path.isdir(text_split_root):
+            shutil.rmtree(text_split_root)
 
     def get_upload_class(self):
         oss_type = self.oss_config["oss_type"]
@@ -526,6 +512,17 @@ class upload(object):
         except Exception as e:
             error_path = self.get_relative_path(file_path)
             raise Exception(f"expect error: {error_path} 获取文件md5失败")
+    
+    def get_text_file_md5(self, text_file_path):
+        try:
+            with open(text_file_path, "r", encoding='utf-8') as f:
+                text = json.load(f)["text"]
+            buffer = text.encode("utf-8")
+            text_file_md5 = hashlib.md5(buffer).hexdigest()
+            return text_file_md5
+        except:
+            error_path = self.get_relative_path(text_file_path)
+            raise Exception(f"expect error: {error_path} 获取文件md5失败")
 
     def get_file_size(self, file_path):
         try:
@@ -628,11 +625,14 @@ class upload(object):
         self.upload_files_path = new_upload_files_path
 
     # 获取单个文件信息
-    def get_file_info(self, file_path, is_pic=False, size_md5=True):
+    def get_file_info(self, file_path, is_pic=False, size_md5=True, is_text=False):
         name = os.path.basename(file_path)
         if size_md5:
             size = self.get_file_size(file_path)
-            md5 = self.get_file_md5(file_path)
+            if is_text:
+                md5 = self.get_text_file_md5(file_path)
+            else:
+                md5 = self.get_file_md5(file_path)
         else:
             size = None
             md5 = None
@@ -863,32 +863,111 @@ class upload(object):
             ].keys():
                 self.upload_files_path[segment_relative_root][file_relative_path]["path_original"] = self.upload_files_path[segment_relative_root][file_relative_path]["path"]
     
+    
+    def deal_repeat_path(self, repeat_path):
+        new_repeat_path = ""
+        if self.dsinfo["data_type"] == "text":
+            parts = repeat_path.split("/")
+            new_repeat_path = parts[0] + "/" + parts[2]  + "/" + parts[1] + ".json 第" + parts[3][:-5] + "条数据"
+        elif self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
+            new_repeat_path =  repeat_path
+        elif self.dsinfo["data_type"] in ("image", "segment_image", "audio", "segment_audio", "video", "segment_video"):
+            path = self.path_join(os.path.dirname(self.data_root), repeat_path)
+            if os.path.exists(path):
+                new_repeat_path = self.get_relative_path(path)
+            else:
+                parts = repeat_path.split("/")
+                new_repeat_path = self.path_join(os.path.dirname(self.data_root), repeat_path)
+                new_repeat_path = self.path_join(os.path.dirname(os.path.dirname(new_repeat_path)), os.path.basename(new_repeat_path))
+        else:
+            data_type = self.dsinfo["data_type"]
+            error_str = f"expect error: 暂不支持 {data_type} 数据集类型"
+            raise_error(error_str, self.error_record_path)
+        
+        return new_repeat_path
+    
     def check_md5(self):
         if self.dsinfo["check_md5"] == 1:
             return
         
         md5 = []
+        md5ids =[]
+        relative_paths = []
+        repeat_index_groups = []
 
+        index = 0
         for segment_relative_root, segment_files in self.upload_files_path.items():
             for file_relative_path,  file_info in segment_files.items():
                 # 点云config文件不判重
                 if self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
-                    if file_relative_path.endswith("config.json") and self.path_join(segment_relative_root, "config.json") == file_relative_path:
-                        continue
+                    if os.path.basename(file_relative_path) == "config.json":
+                        parts = file_relative_path.split("/")
+                        if len(parts) == 3:
+                            continue
 
-                # 文本图像文件不判重
+                # 文本
                 if self.dsinfo["data_type"] == "text":
-                    if not file_relative_path.endswith(".json"):
+                    if file_relative_path.endswith(IMAGE_FILE_TYPES):
                         continue
-                    if file_relative_path.endswith(".json") and os.path.basename(os.path.dirname(file_relative_path)) == "pre_label":
+                
+                #预标注结果
+                if file_relative_path.endswith(PRE_LABEL_FILE_TYPES):
+                    parts = file_relative_path.split("/")
+                    if parts[-2] == "pre_label" and len(parts) == 4:
                         continue
 
                 md5.append(file_info["md5"])
+
+                md5ids.append(file_info["md5"] + str(index).rjust(10,"0"))
+                relative_paths.append(file_relative_path)
+                index +=1
         
         md5_total_count = len(md5)
+
+        md5ids.sort()
+        for i in range(md5_total_count - 1):
+            md5id1 = md5ids[i]
+            md51 = md5id1[:-10]
+            id1 = int(md5id1[-10:])
+            j = i + 1
+            while j <= md5_total_count - 1:
+                md5id2 = md5ids[j]
+                md52 = md5id2[:-10]
+                if md51 == md52:
+                    id2 = int(md5id2[-10:])
+                    repeat_index_groups.append([id1, id2])
+                else:
+                    break
+                j += 1
+        if repeat_index_groups:
+            if self.dsinfo["data_type"] == "text":
+                self.delete_add_files()
+
+            error_str = "expect error: 同一批次内数据重复:\n"
+            errorlines = []
+            for repeat_index_group in repeat_index_groups:
+                repeat_paths = []
+                repeat_paths.append(self.deal_repeat_path(relative_paths[repeat_index_group[0]]))
+                repeat_paths.append(self.deal_repeat_path(relative_paths[repeat_index_group[1]]))
+                repeat_paths.sort()
+                errorline = "\n   \""
+                errorline += repeat_paths[0]
+                errorline += "\"  \""
+                errorline += repeat_paths[1]
+                errorline += "\""
+                errorlines.append(errorline)
+            errorlines.sort()
+            for errorline in errorlines:
+                error_str += errorline
+            
+            raise_error(error_str, self.error_record_path)
+        
+        
         count = md5_total_count // CHECK_MD5_COUNT
         if md5_total_count % CHECK_MD5_COUNT != 0:
             count += 1
+
+        repeat_indexs = []
         
         self.check_md5_ulr = (
             f"{self.host}/v2/datasets/{self.ds_id}/check-md5"
@@ -914,14 +993,29 @@ class upload(object):
             if not success_flag:
                 record_error(errors, self.error_record_path)
                 raise Exception("expect error: 检查文件重复失败")
-            
+
             try:
-                repeat_num = len(res.json()["data"]["items"])
+                for md5 in res.json()["data"]["items"]:
+                    repeat_index = i * CHECK_MD5_COUNT + md5_part.index(md5)
+                    repeat_indexs.append(repeat_index)
             except:
                 raise Exception("expect error: 检查文件重复失败")
-            
-            if repeat_num != 0:
-                raise Exception("expect error: 文件重复，若要继续上传，请在数据集开启允许数据重复")
+        
+        if  repeat_indexs:
+            if self.dsinfo["data_type"] == "text":
+                self.delete_add_files()
+                
+            error_str = "expect error: 该批次内数据与数据集中数据重复，重复数据:\n"
+            errorlines = []
+            for repeat_index in repeat_indexs:
+                errorline = "\n   \""
+                errorline += self.deal_repeat_path(relative_paths[repeat_index])
+                errorline += "\""
+                errorlines.append(errorline)
+            errorlines.sort()
+            for errorline in errorlines:
+                error_str += errorline
+            raise_error(error_str, self.error_record_path)
 
     def call_back_fail(self, e):
         return
