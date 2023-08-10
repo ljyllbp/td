@@ -881,6 +881,7 @@ class upload(object):
                 parts = repeat_path.split("/")
                 new_repeat_path = self.path_join(os.path.dirname(self.data_root), repeat_path)
                 new_repeat_path = self.path_join(os.path.dirname(os.path.dirname(new_repeat_path)), os.path.basename(new_repeat_path))
+                new_repeat_path = self.get_relative_path(new_repeat_path)
         else:
             data_type = self.dsinfo["data_type"]
             error_str = f"expect error: 暂不支持 {data_type} 数据集类型"
