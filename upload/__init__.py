@@ -946,8 +946,7 @@ class upload(object):
             if self.dsinfo["data_type"] == "text":
                 self.delete_add_files()
             
-            if self.dsinfo["data_type"] == "fushion_sensor_pointcloud":
-                self.del_pcd_cache()
+            self.del_cache()
             
             error_str = "expect error: 重复数据:\n"
             errorlines = []
