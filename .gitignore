@@ -10,3 +10,4 @@ command.txt
 main.spec
 dist/
 build/
+del.py
