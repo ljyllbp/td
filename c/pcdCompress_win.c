@@ -673,13 +673,13 @@ void fillField(struct Field *field, int32 size, char type, int32 count, int32 in
 void readPcdHead(struct PcdInfo *pcdinfo, FILE *fp, bool forceCompressed){
     initPcdInfo(pcdinfo);
 
-    char line[100];
+    char line[1000];
     uint8 lineCount = 15;
     struct StrSplitRes strSplitRes;
     char files[4][20][20];
     int filesCount = 0;
 
-    while (fgets(line, 100, fp) != NULL){
+    while (fgets(line, 1000, fp) != NULL){
         strip(line);
         split(&strSplitRes, line, " ");
 
@@ -1181,7 +1181,10 @@ void readPcdDataAscii(struct PcdInfo *pcdinfo, FILE *fp){
             exit(1);
         }
         fread(buf, 1, bufLength, fp);
-
+        if (dataLength == 0 && buf[bufLength-1] != '\n'){
+            buf[bufLength] = '\n';
+            bufLength++ ;
+        }
 
         for (int i = 0; i < bufLength; i++){
             if (buf[i] == '\n'){
@@ -1477,8 +1480,11 @@ void readPcdData(struct PcdInfo *pcdinfo, FILE *fp){
         readPcdDataAscii(pcdinfo, fp);
     }else if (pcdinfo->type == binary){
         readPcdDataBinary(pcdinfo, fp);
-    }else{
+    }else if(pcdinfo->type == binary_compressed){
         readPcdDataBinaryCompressed(pcdinfo, fp);
+    }else{
+        printf("read pcd type error\n");
+        exit(1);
     }
 }
 
@@ -1942,12 +1948,16 @@ void start(char *startDir, char *resSaveFile, bool forceCompressed, bool debug){
             strcat(distPcdPath, PCD_S_ROOT);
             strcat(distPcdPath, pcdfile);
             if(rightWrite(distPcdPath)){
-                printf(" already exists\n");
+                if (debug){
+                    printf(" already exists\n");
+                }
                 strSplitResFree(&strSplitRes);
                 nowFile = nowFile->next;
                 continue;
             }else{
-                printf("\n");
+                if (debug){
+                    printf("\n");
+                }
             }
             pcdFileChange(nowFile->name, forceCompressed, distPcdPath);
         }
