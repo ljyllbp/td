@@ -1677,6 +1677,34 @@ void myPrint(char* str){
     
 }
 
+// solve the bug in windows
+char * myDirname_(char *path){
+    char tail[] = "jjjjjjjjjj";
+    char * pathTemp = NULL;
+    size_t pathLen, pathTempLen, tailLen, dirnameTempLen;
+    char * dirnameTemp;
+    pathLen = strlen(path);
+    tailLen = strlen(tail);
+    pathTempLen = pathLen + tailLen + 1;
+    pathTemp = (char *) malloc(pathTempLen);
+    if (pathTemp == NULL){
+        printf("memory error\n");
+        exit(-1);
+    }
+    memset(pathTemp, '\0', pathTempLen);
+    strcpy(pathTemp, path);
+    strcat(pathTemp, tail);
+    dirnameTemp = dirname(pathTemp);
+    dirnameTempLen = strlen(dirnameTemp);
+    for (size_t i = 0; i < pathTempLen-dirnameTempLen; i++) {
+        pathTemp[dirnameTempLen+i] = '\0';
+    }
+    if (pathTemp[dirnameTempLen-1] == '/'){
+        pathTemp[dirnameTempLen-1] = '\0'
+    }
+    return pathTemp;
+}
+
 char * myDirname(char *path){
     char *pathTemp = NULL;
     char *dirnameTemp = NULL;
@@ -1692,7 +1720,7 @@ char * myDirname(char *path){
     memset(pathTemp, '\0', spaceLen);
     strcpy(pathTemp, path);
 
-    dirname_ = dirname(pathTemp);
+    dirname_ = myDirname_(pathTemp);
     spaceLen = sizeof(char) * strlen(dirname_) + 1;
     dirnameTemp = (char *)malloc(spaceLen);
     if (dirnameTemp == NULL){
@@ -1704,6 +1732,7 @@ char * myDirname(char *path){
     strcpy(dirnameTemp,dirname_);
 
     free(pathTemp);
+    free(dirname_);
     pathTemp = NULL;
 
     return dirnameTemp;

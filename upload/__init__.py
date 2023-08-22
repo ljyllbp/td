@@ -380,7 +380,10 @@ class upload(object):
         return files_info
 
     def get_relative_path(self, path):
-        return path[len(os.path.dirname(self.data_root)) + 1 :]
+        if os.path.dirname(self.data_root).endswith("/"):
+            return path[len(os.path.dirname(self.data_root)) : ]
+        else:
+            return path[len(os.path.dirname(self.data_root)) + 1 :]
 
     def get_file_type(self, file_path):
         try:
