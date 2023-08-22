@@ -1700,7 +1700,7 @@ char * myDirname_(char *path){
         pathTemp[dirnameTempLen+i] = '\0';
     }
     if (pathTemp[dirnameTempLen-1] == '/'){
-        pathTemp[dirnameTempLen-1] = '\0'
+        pathTemp[dirnameTempLen-1] = '\0';
     }
     return pathTemp;
 }
