@@ -8,11 +8,11 @@ td命令行工具为方便针对标注平台数据上传、下载的本地命令
 
 下载成功解压后将解压得到的目录路径加入到本地的环境变量中（如windows下将'your/path/td_win'加入环境变量即可），可在命令行终端中直接使用td命令。
 
-[windows添加环境变量参考](https://blog.csdn.net/weixin_44099083/article/details/121177094)
+[windows添加环境变量参考](td_win.mp4)
 <br>
-[mac添加环境变量参考](https://www.jianshu.com/p/8e51bc9cebfa)
+[mac添加环境变量参考(不同版本下载不同类型压缩包即可，这里以Arm架构为例)](td_mac.mp4)
 <br>
-[linux添加环境变量参考](https://blog.csdn.net/yi412/article/details/11523525)
+[linux添加环境变量参考](td_linux.mp4)
 
 当前版本：1.0.0
 
@@ -35,6 +35,8 @@ td upload <access_key\> <ds_id\> <data_root\> [flags]
 - 检查目录名以及文件名是否含有'?', '#', ':', '%'内的特殊字符
 - 检查目录是否符合数据集目录格式要求
 - 检查图像，序列图像，点云预标注结果文件id
+- 检查点云config文件
+- 平台不允许重复时，检查文件重复情况
 
 **必选字段**
 
@@ -118,8 +120,8 @@ td export <access_key\> <task_batch_key\> <out\> [flags]
 |:-:|:-:|
 |0|待处理|
 |1|进行中|
-|2|已通过|
-|3|已驳回|
+|3|已通过|
+|2|已驳回|
 |99|全部|
 
 **示例**
