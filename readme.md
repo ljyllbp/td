@@ -14,7 +14,7 @@ td命令行工具为方便针对标注平台数据上传、下载的本地命令
 <br>
 [linux添加环境变量参考](td_linux.mp4)
 
-当前版本：1.0.0
+当前版本：1.2.0
 
 [Linux版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_linux.zip)  
 [Mac-Arm版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_mac_arm.zip)  
