@@ -8,24 +8,24 @@ td命令行工具为方便针对标注平台数据上传、下载的本地命令
 
 下载成功解压后将解压得到的目录路径加入到本地的环境变量中（如windows下将'your/path/td_win'加入环境变量即可），可在命令行终端中直接使用td命令。
 
-[windows添加环境变量参考](td_win.mp4)
+[windows添加环境变量参考](http://src1-yscdn.testin.cn/data/td/mp4/1/td_win.mp4)
 <br>
-[mac添加环境变量参考(不同版本下载不同类型压缩包即可，这里以Arm架构为例)](td_mac.mp4)
+[mac添加环境变量参考](http://src1-yscdn.testin.cn/data/td/mp4/1/td_mac.mp4)
 <br>
-[linux添加环境变量参考](td_linux.mp4)
+[linux添加环境变量参考](http://src1-yscdn.testin.cn/data/td/mp4/1/td_linux.mp4)
 
-当前版本：1.2.0
+当前版本：1.0.0
 
-[Linux版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_linux.zip)  
-[Mac-Arm版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_mac_arm.zip)  
-[Mac-Intel版本](http://src1-yscdn.testin.cn/data/td/1.0.0/td_mac_amd.zip)  
-[Windows版本](http://src1-yscdn.testin.cn/data/td/1.0.1/td_win.zip)
+[Linux版本](http://src1-yscdn.testin.cn/data/td/zip/1.2.0/td_linux.zip)  
+[Mac-Arm版本](http://src1-yscdn.testin.cn/data/td/zip/1.2.0/td_mac_arm.zip)  
+[Mac-Intel版本](http://src1-yscdn.testin.cn/data/td/zip/1.2.0/td_mac_amd.zip)  
+[Windows版本](http://src1-yscdn.testin.cn/data/td/zip/1.2.0/td_win.zip)
 
 ## 命令介绍
 
 ### upload
 
-td upload <access_key\> <ds_id\> <data_root\> [flags]
+td upload <ak\> <ds_id\> <data_root\> [flags]
 
 **功能**
 
@@ -41,7 +41,7 @@ td upload <access_key\> <ds_id\> <data_root\> [flags]
 **必选字段**
 
 |字段名|类型|说明|
-|:-:|:-:|:-:|
+|:-|:-|:-|
 |access_key|string|平台创建数据集账号的密钥|
 |ds_id|string|平台数据集id|
 |data_root|string|符合数据集格式要求的数据目录|
@@ -49,7 +49,7 @@ td upload <access_key\> <ds_id\> <data_root\> [flags]
 **可选字段**
 
 |字段名|简写|默认值|类型|说明|
-|:-:|:-:|:-:|:-:|:-:|
+|:-|:-|:-|:-|:-|
 |batch_sn|b|none|string|批次号|
 |force_compressed|f|false|bool|是否强制压缩点云|
 |help|h|||说明|
@@ -69,7 +69,7 @@ td upload 95c6f35e29bbd0621d2a0ef2c8846adee86c ds_8hbhpcp5ifqdbm6fr5jo /data/点
 
 ### export
 
-td export <access_key\> <task_batch_key\> <out\> [flags]
+td export <ak\> <task_batch_key\> <out\> [flags]
 
 **功能**
 
@@ -78,7 +78,7 @@ td export <access_key\> <task_batch_key\> <out\> [flags]
 **必选字段**
 
 |字段名|类型|说明|
-|:-:|:-:|:-:|
+|:-|:-|:-|
 |access_key|string|平台创建数据集账号的密钥|
 |task_batch_key|string|平台任务key|
 |out|string|保存数据的目录|
@@ -86,7 +86,7 @@ td export <access_key\> <task_batch_key\> <out\> [flags]
 **可选字段**
 
 |字段名|简写|默认值|类型|说明|
-|:-:|:-:|:-:|:-:|:-:|
+|:-|:-|:-|:-|:-|
 |download_type|d|label|string|下载类型:label, original 或 original_and_label|
 |file_name|f|none|string|文件名称|
 |have_more_info|m|false|bool|标注结果文件是否包含角色信息|
@@ -108,7 +108,7 @@ td export <access_key\> <task_batch_key\> <out\> [flags]
 **工序id对应表**
 
 |id|状态|
-|:-:|:-:|
+|:-|:-|
 |1|标注|
 |2|审核|
 |3|质检|
@@ -117,7 +117,7 @@ td export <access_key\> <task_batch_key\> <out\> [flags]
 **题状态id对应表**
 
 |id|状态|
-|:-:|:-:|
+|:-|:-|
 |0|待处理|
 |1|进行中|
 |3|已通过|
@@ -135,7 +135,11 @@ td export 95c6f35e29bbd0621d2a0ef2c8846adee86c 230619ad96c /out --download_type 
 
 **mac**
 ```
-因为Apple无法检查其是否包含恶意软件
+打开的zsh终端，而不是bash终端：
+chsh -s /bin/bash
+关闭重新打开终端
+
+因为Apple无法检查其是否包含恶意软件：
 系统偏好->安全性与隐私->通用->勾选'任何来源'
 若无'任何来源'选项
 终端输入 sudo spctl --master-disable
